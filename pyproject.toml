@@ -1,0 +1,31 @@
+[project]
+name = "ultra-trail-strategist"
+version = "0.1.0"
+description = "Agentic AI Application for ultra-distance race strategies."
+authors = [
+    {name = "User", email = "user@example.com"},
+]
+dependencies = [
+    "polars>=0.20.0",
+    "pandas>=2.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "geopandas>=0.14.0",
+    "gpxpy>=1.6.0",
+    "scipy>=1.10.0",
+    "langchain>=0.1.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "mcp>=0.1.0",
+    "langchain-openai>=0.1.0",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true

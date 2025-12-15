@@ -1,0 +1,78 @@
+import asyncio
+import os
+import sys
+from dotenv import load_dotenv
+
+# Ensure we can find the src package
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
+
+from ultra_trail_strategist.pipeline import RaceDataPipeline
+from ultra_trail_strategist.agent.strategist import StrategistAgent, RaceState
+from ultra_trail_strategist.feature_engineering.segmenter import Segment
+
+async def main():
+    # 1. Load Environment Variables
+    load_dotenv()
+    
+    # Check credentials
+    if not os.getenv("STRAVA_CLIENT_ID") or not os.getenv("OPENAI_API_KEY"):
+        print("❌ Error: Missing credentials. Please check your .env file.")
+        print("Required: STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN, OPENAI_API_KEY")
+        return
+
+    # 2. Get Input GPX
+    gpx_path = input("Enter path to GPX file (or press Enter for demo mode): ").strip()
+    if not gpx_path:
+        print("⚠️ No GPX provided. Generating DUMMY data for demonstration...")
+        # Create dummy segments if no file provided
+        from ultra_trail_strategist.feature_engineering.segmenter import SegmentType
+        segments = [
+            Segment(start_dist=0, end_dist=5000, type=SegmentType.FLAT, avg_grade=0, elevation_gain=50, elevation_loss=50, length=5000),
+            Segment(start_dist=5000, end_dist=8000, type=SegmentType.CLIMB, avg_grade=10, elevation_gain=300, elevation_loss=0, length=3000),
+            Segment(start_dist=8000, end_dist=12000, type=SegmentType.DESCENT, avg_grade=-8, elevation_gain=0, elevation_loss=320, length=4000),
+        ]
+        course_analysis_draft = ""
+    else:
+        if not os.path.exists(gpx_path):
+            print(f"❌ File not found: {gpx_path}")
+            return
+        
+        # Run Pipeline
+        print(f"🔄 Processing GPX: {gpx_path}...")
+        pipeline = RaceDataPipeline(gpx_path)
+        segments = pipeline.run()
+        print(f"✅ Generated {len(segments)} segments.")
+        course_analysis_draft = "" # Agent will generate this
+
+    # 3. Initialize Agent
+    print("\n🤖 Initializing AI Strategist...")
+    try:
+        agent = StrategistAgent()
+    except Exception as e:
+        print(f"❌ Failed to initialize agent: {e}")
+        return
+
+    # 4. Prepare State
+    initial_state = {
+        "segments": segments,
+        "athlete_history": [],     # Will be populated by tool
+        "course_analysis": course_analysis_draft,
+        "final_strategy": ""
+    }
+
+    # 5. Run Strategy Generation
+    print("🧠 Thinking... (Querying Strava & Generating Strategy)")
+    try:
+        result = await agent.workflow.ainvoke(initial_state)
+        
+        print("\n" + "="*50)
+        print("🏁 RACE STRATEGY 🏁")
+        print("="*50)
+        print(result["final_strategy"])
+        print("="*50)
+        
+    except Exception as e:
+        print(f"❌ Error during execution: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
