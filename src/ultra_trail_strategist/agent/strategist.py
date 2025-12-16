@@ -18,6 +18,7 @@ class RaceState(TypedDict):
     athlete_history: List[Dict[str, Any]]
     course_analysis: str
     pacing_report: str      # Output from Pacer
+    pacing_data: List[Dict[str, Any]] # Structured Pacing Data
     nutrition_report: str   # Output from Nutritionist
     final_strategy: str     # Output from Principal
 
@@ -84,11 +85,11 @@ class StrategistAgent:
     async def run_pacer(self, state: RaceState) -> Dict[str, Any]:
         """Delegate to PacerAgent."""
         # Need segments and history
-        report = await self.pacer.generate_pacing_plan(
+        result = await self.pacer.generate_pacing_plan(
             state["segments"], 
             state["athlete_history"]
         )
-        return {"pacing_report": report}
+        return {"pacing_report": result["report"], "pacing_data": result["data"]}
 
     async def run_nutritionist(self, state: RaceState) -> Dict[str, Any]:
         """Delegate to NutritionistAgent."""

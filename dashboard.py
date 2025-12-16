@@ -104,6 +104,7 @@ if uploaded_file or demo_mode:
                     "athlete_history": [],
                     "course_analysis": "",
                     "pacing_report": "",
+                    "pacing_data": [],
                     "nutrition_report": "",
                     "final_strategy": ""
                 }
@@ -128,6 +129,25 @@ if uploaded_file or demo_mode:
                     
                 with tab2:
                     st.markdown("### ML Pacing Predictions")
+                    
+                    # Visualize Pacing
+                    if result.get("pacing_data"):
+                        pace_data = result["pacing_data"]
+                        # Create plotting data for step chart
+                        plot_data = []
+                        for const in pace_data:
+                            # Step logic: same pace from start to end of segment
+                            plot_data.append({"distance": const["start_dist"], "pace": const["pace_min_km"]})
+                            plot_data.append({"distance": const["end_dist"], "pace": const["pace_min_km"]})
+                        
+                        df_pace = pd.DataFrame(plot_data)
+                        
+                        fig_pace = px.line(df_pace, x="distance", y="pace", title="Projected Pace (min/km)")
+                        fig_pace.update_yaxes(autorange="reversed") # Faster pace is lower number usually, but for min/km higher is slower. Usually runners like lower is higher Y? Or standard inverting. 
+                        # Let's keep standard (higher Y = slower). 
+                        fig_pace.update_layout(yaxis_title="Pace (min/km)")
+                        st.plotly_chart(fig_pace, use_container_width=True)
+
                     st.text(result["pacing_report"])
                     
                 with tab3:

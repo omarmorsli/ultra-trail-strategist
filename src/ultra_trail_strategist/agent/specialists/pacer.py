@@ -18,7 +18,7 @@ class PacerAgent:
         self.llm = llm
         self.pace_model = PacePredictor()
         
-    async def generate_pacing_plan(self, segments: List[Any], athlete_history: List[Dict[str, Any]]) -> str:
+    async def generate_pacing_plan(self, segments: List[Any], athlete_history: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Executes the pacing workflow:
         1. Fetch Streams for recent history.
@@ -36,12 +36,14 @@ class PacerAgent:
 
         if not streams:
             return "PACING PLAN: Insufficient data to generate ML predictions."
+            return {"report": "PACING PLAN: Insufficient data to generate ML predictions.", "data": []}
 
         # 2. Train Model
         self.pace_model.train(streams)
         
         # 3. Predict Segments
         predicted_splits = []
+        structured_data = [] # For Dashboard Plotting
         total_time_min = 0
         
         for i, seg in enumerate(segments):
@@ -53,6 +55,14 @@ class PacerAgent:
                 f"- Seg {i+1} ({seg.type.value}, {seg.length/1000:.1f}km, {seg.avg_grade:.1f}%): "
                 f"{pace_min_km:.1f} min/km | {segment_time_min:.0f} min"
             )
+            
+            structured_data.append({
+                "segment_index": i,
+                "start_dist": seg.start_dist,
+                "end_dist": seg.end_dist,
+                "pace_min_km": pace_min_km,
+                "time_min": segment_time_min
+            })
 
         total_hours = total_time_min / 60
         
@@ -67,4 +77,9 @@ class PacerAgent:
         chain = prompt | self.llm
         result = chain.invoke({})
         
-        return f"PACING REPORT:\n{result.content}\n\nDETAILED SPLITS:\n{data_block}"
+        report_str = f"PACING REPORT:\n{result.content}\n\nDETAILED SPLITS:\n{data_block}"
+        
+        return {
+            "report": report_str,
+            "data": structured_data
+        }
