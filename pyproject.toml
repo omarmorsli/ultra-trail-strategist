@@ -6,19 +6,21 @@ authors = [
     {name = "User", email = "user@example.com"},
 ]
 dependencies = [
-    "polars>=0.20.0",
-    "pandas>=2.0.0",
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "geopandas>=0.14.0",
-    "gpxpy>=1.6.0",
-    "scipy>=1.10.0",
-    "langchain>=0.1.0",
     "requests>=2.31.0",
+    "pandas>=2.0.0",
+    "polars>=0.20.0",
+    "scipy>=1.10.0",
+    "gpxpy>=1.5.0",
     "python-dotenv>=1.0.0",
-    "mcp>=0.1.0",
+    "langchain>=0.1.0",
     "langchain-openai>=0.1.0",
+    "langgraph>=0.1.0",
     "scikit-learn>=1.3.0",
+    "mcp>=0.1.0",
+    "fastmcp",
+    "streamlit",
+    "plotly",
+    "watchdog"
 ]
 requires-python = ">=3.10"
 readme = "README.md"

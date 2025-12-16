@@ -31,6 +31,7 @@ class RaceDataPipeline:
         # 2. Segmentation
         segmenter = CourseSegmenter(self.df)
         self.segments = segmenter.process()
+        self.df = segmenter.df # Capture enriched DF with grade/type
         
         logger.info(f"Pipeline complete. Generated {len(self.segments)} segments.")
         return self.segments

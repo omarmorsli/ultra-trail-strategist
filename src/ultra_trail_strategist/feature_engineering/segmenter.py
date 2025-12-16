@@ -38,14 +38,14 @@ class CourseSegmenter:
     def process(self) -> List[Segment]:
         """
         Main pipeline: calculate grade -> classify -> merge.
+        Updates self.df with 'grade' and 'segment_type' columns.
         """
         if self.df.is_empty():
             return []
 
-        df = self._calculate_grade(self.df)
-        df = self._classify_points(df)
-        segments = self._create_segments(df)
-        # filtered_segments = self._merge_short_segments(segments) # TODO: Implement merging later
+        self.df = self._calculate_grade(self.df)
+        self.df = self._classify_points(self.df)
+        segments = self._create_segments(self.df)
         return segments
 
     def _calculate_grade(self, df: pl.DataFrame) -> pl.DataFrame:
