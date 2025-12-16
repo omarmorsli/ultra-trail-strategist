@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 from mcp.server.fastmcp import FastMCP
 
 from ultra_trail_strategist.data_ingestion.weather_client import WeatherClient
+from ultra_trail_strategist.data_ingestion.strava_client import StravaClient
 
 # Initialize FastMCP Server
 mcp = FastMCP("Strava MCP Server")
