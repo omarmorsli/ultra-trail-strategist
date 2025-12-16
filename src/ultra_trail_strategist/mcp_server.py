@@ -3,13 +3,14 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from mcp.server.fastmcp import FastMCP
 
-from ultra_trail_strategist.data_ingestion.strava_client import StravaClient
+from ultra_trail_strategist.data_ingestion.weather_client import WeatherClient
 
 # Initialize FastMCP Server
 mcp = FastMCP("Strava MCP Server")
 
 # Instantiate functionality
 strava = StravaClient()
+weather = WeatherClient()
 logger = logging.getLogger("strava_mcp")
 
 @mcp.tool()
@@ -71,6 +72,17 @@ async def get_activity_streams(activity_ids: List[int]) -> List[Dict[str, Any]]:
             logger.error(f"Failed to fetch stream for {aid}: {e}")
             continue
     return streams
+
+@mcp.tool()
+async def get_race_forecast(latitude: float, longitude: float) -> str:
+    """
+    Get the weather forecast for the race location.
+    
+    Args:
+        latitude: Latitude of the race start.
+        longitude: Longitude of the race start.
+    """
+    return weather.get_current_conditions(latitude, longitude)
 
 # Entry point for running the server directly
 if __name__ == "__main__":
