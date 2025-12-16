@@ -2,8 +2,6 @@
 
 **AI-Powered Race Strategy for Ultra-Endurance Athletes**
 
-![Logo](assets/logo_UTS.png)
-
 ## Overview
 Ultra-Trail Strategist is an advanced AI application designed to help trail runners optimize their race day performance. It combines course typography analysis, historical athlete data, and real-time weather forecasts to generate a comprehensive race strategy.
 
@@ -75,7 +73,33 @@ python -m unittest discover tests
 ```
 
 ## 🏗️ Architecture
+
 The system uses a **Retrieval-Augmented Generation (RAG)** approach extended with **Agentic Workflows**:
+
+```mermaid
+graph TD
+    User([User]) -->|GPX File| Dashboard[Web Dashboard]
+    Dashboard -->|Raw Data| Pipeline[RaceDataPipeline]
+    Pipeline -->|Segments & Stats| Strategist[Strategist Agent]
+    
+    subgraph "LangGraph Multi-Agent System"
+        Strategist -->|Orchestrate| Pacer[Pacer Agent]
+        Strategist -->|Orchestrate| Nutri[Nutritionist Agent]
+        
+        Pacer -->|Fetch| Strava((Strava API))
+        Pacer -->|Predict Pace| ML[ML Model]
+        
+        Nutri -->|Fetch| Weather((OpenMeteo))
+        Nutri -->|Analyze| Conditions[Weather Conditions]
+        
+        Pacer -->|Pacing Report| Strategist
+        Nutri -->|Nutrition Plan| Strategist
+    end
+    
+    Strategist -->|Synthesize| Report[Final Strategy Report]
+    Report --> Dashboard
+```
+
 1.  **Ingest**: Parse GPX course data & fetch Strava history.
 2.  **Enrich**: Calculate grade-adjusted pace & fetch weather forecast.
 3.  **Plan**: `PacerAgent` and `NutritionistAgent` generate domain-specific plans.
