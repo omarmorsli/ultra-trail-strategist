@@ -1,89 +1,85 @@
-# Ultra-Trail Strategist V2 🏃‍♂️⛰️🤖
+# 🏃‍♂️ Ultra-Trail Strategist (V2)
 
-An Advanced Agentic AI application that generates professional-grade, segment-by-segment race strategies for ultra-distance runners. It uniquely combines geospatial course analysis with physiological athlete history to provide tactical advice.
+**AI-Powered Race Strategy for Ultra-Endurance Athletes**
 
-## 🌟 Key Features (V2)
+![Logo](assets/logo_UTS.png)
 
-*   **Multi-Agent System**: A team of specialized AI agents working for you:
-    *   **Pacer Agent**: Uses Machine Learning to predict split times based on your grade-adjusted pace history.
-    *   **Nutritionist Agent**: Adapts fueling and hydration advice based on real-time **Weather Forecasts** (OpenMeteo) and segment duration.
-    *   **Principal Strategist**: Synthesizes all advice into a cohesive race plan.
-*   **Machine Learning Pacing**: Trains a `RandomForest` model on *your* Strava data to learn how you handle climbs vs flats.
-*   **Smart Course Segmentation**: Automatically breaks down GPX files into: **Climbs** (>3%), **Descents** (<-3%), and **Flats**.
-*   **MCP Server Integration**: Implements the **Model Context Protocol** to seamlessly connect AI agents to Strava and Weather APIs.
+## Overview
+Ultra-Trail Strategist is an advanced AI application designed to help trail runners optimize their race day performance. It combines course typography analysis, historical athlete data, and real-time weather forecasts to generate a comprehensive race strategy.
 
-## 🏗️ Architecture
+### 🌟 V2 Features
+- **Interactive Web Dashboard**: A user-friendly Streamlit interface for visualizing course data and strategies.
+- **Machine Learning Pacing**: Using `scikit-learn`, the system learns your specific specific "Power/Grade" curve from Strava history to predict realistic splits.
+- **Weather-Adaptive Nutrition**: Integrates real-time forecasts (via OpenMeteo) to adjust hydration and sodium recommendations based on temperature and precipitation.
+- **Multi-Agent Orchestration**: Powered by **LangGraph**, a team of specialized agents (`Pacer`, `Nutritionist`) work together under a `Principal Strategist` to deliver a cohesive plan.
 
-```mermaid
-graph TD
-    User[User] -->|GPX| Pipeline[RaceDataPipeline]
-    Pipeline -->|Segments| Strategist[StrategistAgent]
-    
-    subgraph "Multi-Agent System (LangGraph)"
-        Strategist -->|Orchestrates| Pacer[PacerAgent]
-        Strategist -->|Orchestrates| Nutritionist[NutritionistAgent]
-        
-        Pacer -->|Fetch & Train| ML[ML Pace Model]
-        Nutritionist -->|Fetch| Weather[Weather Client]
-    end
-    
-    subgraph "External Data (MCP)"
-        ML -->|Get Activity Streams| Strava[Strava API]
-        Weather -->|Get Forecast| OpenMeteo[OpenMeteo API]
-    end
+## 📂 Project Structure
+```
+.
+├── assets/                 # Demo data and images
+│   ├── demo.gpx            # Sample course file
+│   └── logo_UTS.png        # Project logo
+├── src/
+│   └── ultra_trail_strategist/
+│       ├── agent/          # AI Agents (Strategist, Pacer, Nutritionist)
+│       ├── data_ingestion/ # Strava, GPX, Weather clients
+│       ├── feature_engineering/ # ML Pace Model, Segmentation
+│       └── pipeline.py     # Main data processing pipeline
+├── tests/                  # Unit and integration tests
+├── dashboard.py            # Streamlit Web Application
+├── main.py                 # CLI Entry Point
+└── pyproject.toml          # Dependencies
 ```
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### 1. Prerequisites
+- Python 3.10+
+- An OpenAI API Key
+- A Strava Account (Client ID/Secret)
 
-*   Python 3.10+
-*   A Strava Account (with API Application created)
-*   OpenAI API Key
-
-### Installation
-
-1.  **Clone and Install**:
-    ```bash
-    git clone https://github.com/yourusername/ultra-trail-strategist.git
-    cd ultra-trail-strategist
-    pip install .
-    ```
-
-2.  **Configuration**:
-    Create a `.env` file in the root directory (copy `.env.example`):
-    ```ini
-    STRAVA_CLIENT_ID=your_id
-    STRAVA_CLIENT_SECRET=your_secret
-    STRAVA_REFRESH_TOKEN=your_refresh_token
-    OPENAI_API_KEY=sk-...
-    ```
-    *Note: Ensure your Strava Refresh Token has `activity:read_all` scope.*
-
-### Usage
-
-Run the main application entry point:
-
+### 2. Installation
 ```bash
-python main.py
+# Clone and install dependencies
+pip install -e .
 ```
 
-1.  It will prompt you for a **GPX file path**.
-2.  (Optional) Press **Enter** to run in **Demo Mode** with synthetic data.
-3.  The system will:
-    *   Analyze the course topography.
-    *   Train a pacing model on your recent runs.
-    *   Check the weather forecast.
-    *   Generate a comprehensive **Pacing, Nutrition, and Strategy Report**.
+### 3. Configuration
+Create a `.env` file in the root directory:
+```env
+OPENAI_API_KEY="sk-..."
+STRAVA_CLIENT_ID="12345"
+STRAVA_CLIENT_SECRET="your_secret"
+STRAVA_REFRESH_TOKEN="your_token"
+```
 
-### Running Tests
+### 4. Running the Application
 
-To verify the installation and logic:
+#### 🖥️ Web Dashboard (Recommended)
+Launch the interactive dashboard to upload GPX files and visualize your strategy.
+```bash
+streamlit run dashboard.py
+```
+*Note: You can use `assets/demo.gpx` to test the system.*
 
+#### ⌨️ CLI Mode
+Run the strategy generation from the command line:
+```bash
+python main.py path/to/course.gpx
+```
+
+## 🧪 Testing
+Run the comprehensive test suite to verify all components:
 ```bash
 python -m unittest discover tests
 ```
 
-## 📄 License
+## 🏗️ Architecture
+The system uses a **Retrieval-Augmented Generation (RAG)** approach extended with **Agentic Workflows**:
+1.  **Ingest**: Parse GPX course data & fetch Strava history.
+2.  **Enrich**: Calculate grade-adjusted pace & fetch weather forecast.
+3.  **Plan**: `PacerAgent` and `NutritionistAgent` generate domain-specific plans.
+4.  **Synthesize**: `StrategistAgent` compiles everything into a final Markdown report.
 
-MIT
+---
+*Built with LangChain, LangGraph, Polars, and Streamlit.*
