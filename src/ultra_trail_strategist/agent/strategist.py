@@ -20,6 +20,7 @@ class RaceState(TypedDict):
     pacing_report: str      # Output from Pacer
     pacing_data: List[Dict[str, Any]] # Structured Pacing Data
     nutrition_report: str   # Output from Nutritionist
+    readiness: int          # Athlete recovery score (0-100)
     final_strategy: str     # Output from Principal
 
 class StrategistAgent:
@@ -105,11 +106,26 @@ class StrategistAgent:
         """
         Principal Agent synthesizes the specialist reports.
         """
-        system_prompt = """You are the Principal Ultra-Trail Coach.
+        readiness = state.get("readiness", 80)
+        
+        mode = "BALANCED"
+        advice = "Aim for a strong, steady finish."
+        if readiness < 50:
+            mode = "CONSERVATIVE (High Risk of Injury/Burnout)"
+            advice = "Your recovery is low. Prioritize finishing over time. Start much slower than the pacing plan suggests."
+        elif readiness > 85:
+            mode = "AGGRESSIVE (PR Attempt)"
+            advice = "You are primed and ready. Attack the hills and push the flats."
+            
+        system_prompt = f"""You are the Principal Ultra-Trail Coach.
         You have received reports from your specialist team (Pacer and Nutritionist).
         Your job is to synthesize these into a single, cohesive, motivating race strategy document for the athlete.
         
+        CURRENT MODE: {mode} ({readiness}/100 Readiness)
+        STRATEGIC DIRECTIVE: {advice}
+        
         Do not just copy-paste. Weave the nutrition advice into the pacing strategy.
+        Adjust the tone to reflect the Current Mode.
         """
         
         human_template = """

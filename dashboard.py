@@ -56,6 +56,10 @@ with st.sidebar:
         st.success("✅ Strava Connected")
     else:
         st.error("❌ Strava Config Missing")
+        
+    st.divider()
+    st.header("Bio-Metrics")
+    readiness = st.slider("Readiness / Recovery Score", 0, 100, 85, help="How recovered do you feel? 0=Exhausted, 100=Peak.")
 
 if uploaded_file or demo_mode:
     with st.spinner("Analyzing Course Topography..."):
@@ -106,6 +110,7 @@ if uploaded_file or demo_mode:
                     "pacing_report": "",
                     "pacing_data": [],
                     "nutrition_report": "",
+                    "readiness": readiness,
                     "final_strategy": ""
                 }
                 
