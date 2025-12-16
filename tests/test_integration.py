@@ -53,6 +53,7 @@ class TestIntegration(unittest.TestCase):
             "segments": segments,
             "athlete_history": [],
             "course_analysis": "",
+            "pacing_plan": "",
             "final_strategy": ""
         }
         

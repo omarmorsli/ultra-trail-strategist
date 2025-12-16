@@ -54,6 +54,24 @@ async def get_activity_analysis(activity_id: int) -> str:
     except Exception as e:
         return f"Error fetching activity {activity_id}: {str(e)}"
 
+@mcp.tool()
+async def get_activity_streams(activity_ids: List[int]) -> List[Dict[str, Any]]:
+    """
+    Fetch detailed streams (telemetry) for a list of activities.
+    Used for Machine Learning model training.
+    """
+    streams = []
+    # Strava API rate limits apply. Sequential fetching to be safe.
+    for aid in activity_ids:
+        try:
+            # We skip errors to ensure we return as much data as possible
+            s = strava.get_activity_stream(aid)
+            streams.append(s)
+        except Exception as e:
+            logger.error(f"Failed to fetch stream for {aid}: {e}")
+            continue
+    return streams
+
 # Entry point for running the server directly
 if __name__ == "__main__":
     mcp.run()
