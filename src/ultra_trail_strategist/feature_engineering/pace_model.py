@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 import numpy as np
 import polars as pl
 from sklearn.ensemble import RandomForestRegressor

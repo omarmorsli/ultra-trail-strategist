@@ -75,15 +75,16 @@ async def get_activity_streams(activity_ids: List[int]) -> List[Dict[str, Any]]:
     return streams
 
 @mcp.tool()
-async def get_race_forecast(latitude: float, longitude: float) -> str:
+async def get_race_forecast(latitude: float, longitude: float, date: Optional[str] = None) -> str:
     """
     Get the weather forecast for the race location.
     
     Args:
         latitude: Latitude of the race start.
         longitude: Longitude of the race start.
+        date: Optional YYYY-MM-DD date.
     """
-    return weather.get_current_conditions(latitude, longitude)
+    return weather.get_current_conditions(latitude, longitude, date=date)
 
 # Entry point for running the server directly
 if __name__ == "__main__":

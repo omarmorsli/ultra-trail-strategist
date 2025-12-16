@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel
 import polars as pl
 import numpy as np

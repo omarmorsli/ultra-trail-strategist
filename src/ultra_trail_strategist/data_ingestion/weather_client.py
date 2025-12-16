@@ -10,17 +10,23 @@ class WeatherClient:
     """
     BASE_URL = "https://api.open-meteo.com/v1/forecast"
     
-    def get_forecast(self, latitude: float, longitude: float, days: int = 1) -> Dict[str, Any]:
+    def get_forecast(self, latitude: float, longitude: float, days: int = 1, date: Optional[str] = None) -> Dict[str, Any]:
         """
         Fetches hourly forecast for the given location.
+        If date is provided (YYYY-MM-DD), fetches forecast for that specific day.
         """
         params = {
             "latitude": latitude,
             "longitude": longitude,
             "hourly": "temperature_2m,precipitation,wind_speed_10m,weather_code",
-            "forecast_days": days,
             "timezone": "auto"
         }
+        
+        if date:
+            params["start_date"] = date
+            params["end_date"] = date
+        else:
+            params["forecast_days"] = days
         
         try:
             response = requests.get(self.BASE_URL, params=params)
@@ -30,11 +36,11 @@ class WeatherClient:
             logger.error(f"Failed to fetch weather: {e}")
             return {}
 
-    def get_current_conditions(self, latitude: float, longitude: float) -> str:
+    def get_current_conditions(self, latitude: float, longitude: float, date: Optional[str] = None) -> str:
         """
         Returns a simplified string summary of current/forecasted weather.
         """
-        data = self.get_forecast(latitude, longitude, days=1)
+        data = self.get_forecast(latitude, longitude, days=1, date=date)
         if not data or "hourly" not in data:
             return "Weather unavailable."
             

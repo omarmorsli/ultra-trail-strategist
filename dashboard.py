@@ -60,6 +60,7 @@ with st.sidebar:
     st.title("Settings")
     st.header("Input")
     uploaded_file = st.file_uploader("Upload GPX File", type=["gpx"])
+    race_date = st.date_input("Race Date")
     demo_mode = st.checkbox("Use Demo Data", value=False)
     
     if os.getenv("STRAVA_CLIENT_ID"):
@@ -138,6 +139,7 @@ if uploaded_file or demo_mode:
                     "pacing_data": [],
                     "nutrition_report": "",
                     "readiness": readiness,
+                    "race_date": str(race_date),
                     "final_strategy": ""
                 }
                 

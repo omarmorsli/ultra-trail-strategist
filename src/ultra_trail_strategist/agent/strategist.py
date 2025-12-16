@@ -1,6 +1,6 @@
 import os
 import asyncio
-from typing import List, Dict, Any, TypedDict
+from typing import List, Dict, Any, TypedDict, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
@@ -21,6 +21,7 @@ class RaceState(TypedDict):
     pacing_data: List[Dict[str, Any]] # Structured Pacing Data
     nutrition_report: str   # Output from Nutritionist
     readiness: int          # Athlete recovery score (0-100)
+    race_date: Optional[str] = None # YYYY-MM-DD
     final_strategy: str     # Output from Principal
 
 class StrategistAgent:
@@ -94,12 +95,25 @@ class StrategistAgent:
 
     async def run_nutritionist(self, state: RaceState) -> Dict[str, Any]:
         """Delegate to NutritionistAgent."""
+        segments = state["segments"]
         # Hardcoded Lat/Lon for now (Chamonix approx) or extract from GPX metadata if improved
         # Future TODO: Extract lat/lon from first segment point
-        report = await self.nutritionist.generate_nutrition_plan(
-            state["segments"], 
-            45.92, 6.86 # Chamonix
-        )
+        start_lat = 45.92
+        start_lon = 6.86
+
+        race_date = state.get("race_date")
+
+        try:
+            report = await self.nutritionist.generate_nutrition_plan(
+                segments,
+                start_lat,
+                start_lon,
+                race_date=race_date
+            )
+        except Exception as e:
+            print(f"Error generating nutrition plan: {e}")
+            report = "Could not generate nutrition plan due to an error."
+            
         return {"nutrition_report": report}
 
     def write_final_strategy(self, state: RaceState) -> Dict[str, Any]:
