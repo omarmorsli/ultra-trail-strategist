@@ -44,10 +44,16 @@ def process_gpx(file_content):
 
 # --- UI ---
 st.title("🏃‍♂️ Ultra-Trail Strategist AI")
+from ultra_trail_strategist.data_ingestion.health_client import HealthClient
 st.markdown("### Intelligent Race Strategy & Pacing")
+
+# Init Clients
+health_client = HealthClient()
 
 # Sidebar
 with st.sidebar:
+    st.image("assets/logo_UTS.png", width=200)
+    st.title("Settings")
     st.header("Input")
     uploaded_file = st.file_uploader("Upload GPX File", type=["gpx"])
     demo_mode = st.checkbox("Use Demo Data", value=False)
@@ -57,9 +63,26 @@ with st.sidebar:
     else:
         st.error("❌ Strava Config Missing")
         
+    # Garmin Check
+    if health_client.garmin_client:
+        st.success("✅ Garmin Connected")
+        auto_readiness = health_client.get_readiness_score()
+        readiness_source = "Garmin (Auto)"
+    else:
+        st.warning("⚠️ Garmin Disconnected")
+        auto_readiness = 80
+        readiness_source = "Manual"
+
     st.divider()
     st.header("Bio-Metrics")
-    readiness = st.slider("Readiness / Recovery Score", 0, 100, 85, help="How recovered do you feel? 0=Exhausted, 100=Peak.")
+    
+    # Slider with auto-value as default
+    readiness = st.slider(
+        f"Readiness Score ({readiness_source})", 
+        0, 100, 
+        auto_readiness, 
+        help="0=Exhausted, 100=Peak. Auto-fetched from Garmin if connected."
+    )
 
 if uploaded_file or demo_mode:
     with st.spinner("Analyzing Course Topography..."):
