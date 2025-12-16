@@ -50,7 +50,7 @@ async def get_activity_analysis(activity_id: int) -> str:
     # This is a placeholder for more complex analysis using get_activity_stream
     # We would fetch streams and compute GAP/HR ratio.
     try:
-        streams = strava.get_activity_stream(activity_id)
+        streams = strava.get_activity_streams(activity_id)
         # Summarize just to show connection works
         return f"Fetched streams for {activity_id}: Found keys {list(streams.keys())}"
     except Exception as e:
@@ -67,7 +67,7 @@ async def get_activity_streams(activity_ids: List[int]) -> List[Dict[str, Any]]:
     for aid in activity_ids:
         try:
             # We skip errors to ensure we return as much data as possible
-            s = strava.get_activity_stream(aid)
+            s = strava.get_activity_streams(aid)
             streams.append(s)
         except Exception as e:
             logger.error(f"Failed to fetch stream for {aid}: {e}")

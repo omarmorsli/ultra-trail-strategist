@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Iterator, Dict, Any, Optional
+from typing import Iterator, Dict, Any, Optional, List
 import requests
 from pydantic import BaseModel
 from ultra_trail_strategist.config.settings import settings
@@ -133,14 +133,20 @@ class StravaClient:
             
             page += 1
 
-    def get_activity_stream(self, activity_id: int) -> Dict[str, Any]:
+    def get_activity_streams(self, activity_id: int, keys: List[str] = ["time", "distance", "altitude", "velocity_smooth", "grade_smooth", "heartrate"]) -> List[Dict[str, Any]]:
         """
         Fetches the detailed stream for a specific activity 
         (lat/lng, elevation, time, etc.).
         """
         endpoint = f"{self.base_url}/activities/{activity_id}/streams"
-        keys = "time,distance,latlng,altitude,velocity_smooth,heartrate,grade_smooth,moving"
-        params = {"keys": keys, "key_by_type": "true"}
+        # The original hardcoded keys string included 'latlng' and 'moving'.
+        # The new default list in the signature does not.
+        # To maintain previous functionality while allowing override,
+        # we'll use the provided 'keys' parameter.
+        # If the user wants the original set, they can pass it explicitly.
+        # For now, we'll use the default list provided in the signature.
+        stream_keys_str = ",".join(keys)
+        params = {"keys": stream_keys_str, "key_by_type": "true"}
         
         try:
             response = self.session.get(endpoint, headers=self.build_headers(), params=params)
