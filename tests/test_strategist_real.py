@@ -10,13 +10,17 @@ class TestStrategistAgent(unittest.TestCase):
     
     @patch("ultra_trail_strategist.agent.strategist.ChatOpenAI")
     @patch("ultra_trail_strategist.agent.strategist.get_recent_activities", new_callable=AsyncMock)
-    @patch("ultra_trail_strategist.agent.strategist.get_activity_streams", new_callable=AsyncMock)
+    @patch("ultra_trail_strategist.agent.specialists.pacer.get_activity_streams", new_callable=AsyncMock)
     def test_full_agent_flow(self, mock_get_streams, mock_get_activities, mock_llm_cls):
         
         agent = StrategistAgent()
         
         # Replace LLM with a RunnableLambda to satisfy LangChain type checks
+        
         agent.llm = RunnableLambda(lambda x: AIMessage(content="Start slow, finish strong."))
+        # IMPORTANT: Also update the sub-agents to use the fake LLM!
+        agent.pacer.llm = agent.llm
+        agent.nutritionist.llm = agent.llm
         
         # Mock Tools
         mock_get_activities.return_value = [{"name": "Long Run", "id": 123, "distance_km": 20}]
@@ -31,7 +35,8 @@ class TestStrategistAgent(unittest.TestCase):
             "segments": segments,
             "athlete_history": [],
             "course_analysis": "",
-            "pacing_plan": "",
+            "pacing_report": "",
+            "nutrition_report": "",
             "final_strategy": ""
         }
         
@@ -45,10 +50,11 @@ class TestStrategistAgent(unittest.TestCase):
         loop.close()
         
         # Assertions
-        self.assertIn("Course Analysis", result["course_analysis"])
+        self.assertIn("Course Stats", result["course_analysis"])
         self.assertEqual(result["athlete_history"][0]["name"], "Long Run")
         # Check that we handled empty streams gracefully (or check pacing logic if proper streams provided)
-        self.assertIn("Could not fetch stream data", result["pacing_plan"])
+        self.assertIn("Insufficient data", result["pacing_report"])
+        self.assertIn("NUTRITION REPORT", result["nutrition_report"])
         self.assertIn("Start slow", result["final_strategy"])
 
 if __name__ == "__main__":

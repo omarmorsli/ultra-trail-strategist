@@ -40,6 +40,10 @@ class TestIntegration(unittest.TestCase):
         
         # Mock LLM to avoid API calls and ensure deterministic output
         agent.llm = RunnableLambda(lambda x: AIMessage(content="STRATEGY: Go fast."))
+        
+        # IMPORTANT: Propagate mock LLM to sub-agents
+        agent.pacer.llm = agent.llm
+        agent.nutritionist.llm = agent.llm
 
         # Create dummy segments
         segments = [
@@ -53,7 +57,8 @@ class TestIntegration(unittest.TestCase):
             "segments": segments,
             "athlete_history": [],
             "course_analysis": "",
-            "pacing_plan": "",
+            "pacing_report": "",
+            "nutrition_report": "",
             "final_strategy": ""
         }
         
@@ -66,8 +71,8 @@ class TestIntegration(unittest.TestCase):
         result = loop.run_until_complete(run_test())
         loop.close()
         
-        self.assertIn("Course Analysis", result["course_analysis"])
-        self.assertIn("Total Distance: 1.00 km", result["course_analysis"])
+        self.assertIn("Course Stats", result["course_analysis"])
+        self.assertIn("1.0km", result["course_analysis"])
         self.assertIn("STRATEGY", result["final_strategy"])
 
 if __name__ == "__main__":

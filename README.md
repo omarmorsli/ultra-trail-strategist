@@ -1,23 +1,37 @@
-# Ultra-Trail Strategist 🏃‍♂️⛰️
+# Ultra-Trail Strategist V2 🏃‍♂️⛰️🤖
 
-An Agentic AI application that generates professional-grade, segment-by-segment race strategies for ultra-distance runners. It uniquely combines geospatial course analysis with physiological athlete history to provide tactical advice.
+An Advanced Agentic AI application that generates professional-grade, segment-by-segment race strategies for ultra-distance runners. It uniquely combines geospatial course analysis with physiological athlete history to provide tactical advice.
 
-## 🌟 Key Features
+## 🌟 Key Features (V2)
 
-*   **Smart Course Segmentation**: Automatically breaks down GPX files into tactical segments: **Climbs** (>3%), **Descents** (<-3%), and **Flats**.
-*   **Physiological Context**: Connects to **Strava** to analyze your recent training volume and fitness status.
-*   **Agentic Reasoning**: Uses a **LangGraph**-based AI agent to synthesize data and act as a "Principal Coach."
-*   **MCP Server**: Implements the **Model Context Protocol (MCP)** to expose Strava data as standard tools for the AI agent.
+*   **Multi-Agent System**: A team of specialized AI agents working for you:
+    *   **Pacer Agent**: Uses Machine Learning to predict split times based on your grade-adjusted pace history.
+    *   **Nutritionist Agent**: Adapts fueling and hydration advice based on real-time **Weather Forecasts** (OpenMeteo) and segment duration.
+    *   **Principal Strategist**: Synthesizes all advice into a cohesive race plan.
+*   **Machine Learning Pacing**: Trains a `RandomForest` model on *your* Strava data to learn how you handle climbs vs flats.
+*   **Smart Course Segmentation**: Automatically breaks down GPX files into: **Climbs** (>3%), **Descents** (<-3%), and **Flats**.
+*   **MCP Server Integration**: Implements the **Model Context Protocol** to seamlessly connect AI agents to Strava and Weather APIs.
 
 ## 🏗️ Architecture
 
-1.  **Data Ingestion**:
-    *   `GPXProcessor`: Polars-based parsing and Savitzky-Golay elevation smoothing.
-    *   `StravaClient`: OAuth2-handled API client with pagination.
-2.  **Feature Engineering**:
-    *   `CourseSegmenter`: Logic for detecting topographical features.
-3.  **Agent Logic**:
-    *   `StrategistAgent`: Orchestrates the workflow (Course Analysis -> Tool Usage -> Strategy Generation).
+```mermaid
+graph TD
+    User[User] -->|GPX| Pipeline[RaceDataPipeline]
+    Pipeline -->|Segments| Strategist[StrategistAgent]
+    
+    subgraph "Multi-Agent System (LangGraph)"
+        Strategist -->|Orchestrates| Pacer[PacerAgent]
+        Strategist -->|Orchestrates| Nutritionist[NutritionistAgent]
+        
+        Pacer -->|Fetch & Train| ML[ML Pace Model]
+        Nutritionist -->|Fetch| Weather[Weather Client]
+    end
+    
+    subgraph "External Data (MCP)"
+        ML -->|Get Activity Streams| Strava[Strava API]
+        Weather -->|Get Forecast| OpenMeteo[OpenMeteo API]
+    end
+```
 
 ## 🚀 Getting Started
 
@@ -56,7 +70,11 @@ python main.py
 
 1.  It will prompt you for a **GPX file path**.
 2.  (Optional) Press **Enter** to run in **Demo Mode** with synthetic data.
-3.  The AI will analyze the course, fetch your recent training history, and print a detailed **Race Strategy**.
+3.  The system will:
+    *   Analyze the course topography.
+    *   Train a pacing model on your recent runs.
+    *   Check the weather forecast.
+    *   Generate a comprehensive **Pacing, Nutrition, and Strategy Report**.
 
 ### Running Tests
 
@@ -64,14 +82,6 @@ To verify the installation and logic:
 
 ```bash
 python -m unittest discover tests
-```
-
-## 🛠️ MCP Server
-
-To run the standalone Strava MCP Server (for use with Claude Desktop or other MCP clients):
-
-```bash
-python src/ultra_trail_strategist/mcp_server.py
 ```
 
 ## 📄 License
