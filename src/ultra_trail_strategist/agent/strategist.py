@@ -106,7 +106,7 @@ class StrategistAgent:
         """
         Principal Agent synthesizes the specialist reports.
         """
-        readiness = state.get("readiness", 80)
+        readiness = state.get("readiness", 50)
         
         mode = "BALANCED"
         advice = "Aim for a strong, steady finish."

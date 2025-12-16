@@ -56,61 +56,75 @@ class HealthClient:
             try:
                 today = date.today().isoformat()
                 
-                # Fetch Training Readiness
-                # Note: API endpoint structures vary, using common known patterns
-                # garminconnect library usually has specific methods or generic get requests
-                
-                # Try specific training readiness if available in library, else body battery
-                start_date = today
-                
-                # Try getting stats
-                # The library often exposes: client.get_training_readiness(date) ?
-                # Let's try generic user summary or specific method if known.
-                # Checking library capability: usually get_user_summary(date) has body battery.
-                
-                stats = self.garmin_client.get_user_summary(today)
-                
-                # Parse Training Readiness (if available in summary)
-                # 'trainingReadiness' might be a key
-                if "trainingReadiness" in stats:
-                     return int(stats["trainingReadiness"])
+                # --- A. Training Readiness ---
+                try:
+                    # Generic method based on library common patterns
+                    if hasattr(self.garmin_client, "get_training_readiness"):
+                        tr_data = self.garmin_client.get_training_readiness(today)
+                        # Structure typically: {'score': 85, ...} or {'trainingReadiness': 85}
+                        if tr_data:
+                            if isinstance(tr_data, dict):
+                                if "score" in tr_data:
+                                    val = int(tr_data["score"])
+                                    logger.info(f"✅ Garmin: Found Training Readiness Score: {val}")
+                                    return val
+                                if "trainingReadiness" in tr_data:
+                                    val = int(tr_data["trainingReadiness"])
+                                    logger.info(f"✅ Garmin: Found Training Readiness: {val}")
+                                    return val
+                            # If it's a list (rare for single day readiness but possible)
+                            if isinstance(tr_data, list) and len(tr_data) > 0:
+                                if "score" in tr_data[-1]:
+                                    val = int(tr_data[-1]["score"])
+                                    logger.info(f"✅ Garmin: Found Training Readiness (List): {val}")
+                                    return val
+                except Exception as e_tr:
+                    logger.warning(f"Garmin Readiness fetch failed: {e_tr}")
 
-                # Fallback to Body Battery
-                if "bodyBattery" in stats:
-                     # bodyBattery is often a dict with 'highest', 'lowest', or just a value
-                     # stats['bodyBatteryChargedValue'] ?
-                     # Let's look for 'averageBodyBattery' or 'charged'
-                     # Or checks 'mostRecentBodyBattery'
-                     pass
-                     
-                # Safer check for body battery in daily summary
-                # "totalBodyBattery" or similar.
-                # Actually, let's look for "latestBodyBattery" logic or use Body Composition? No.
-                
-                # Let's try to fetch specific Body Battery data if summary fails
-                # client.get_body_battery(today)
-                bb_data = self.garmin_client.get_body_battery(start_date)
-                if bb_data:
-                    # usually a list of dicts. Get the last one?
-                    # or it returns a summary dict.
-                    # Assuming it returns a list of samples, we take the last one.
-                    if isinstance(bb_data, list) and len(bb_data) > 0:
-                        last_point = bb_data[-1]
-                        if "bodyBatteryValues" in last_point:
-                             # This structure is complex. 
-                             pass
-                    # If it's a list containing dicts with 'value'
-                    pass
+                # --- B. Body Battery (Fallback) ---
+                try:
+                    # Method: get_body_battery(date)
+                    if hasattr(self.garmin_client, "get_body_battery"):
+                        bb_data = self.garmin_client.get_body_battery(today)
+                        # Typically returns a list of dictionaries for 15min intervals
+                        # [{'date':..., 'bodyBatteryValues': {'charged': 80, ...}}, ...]
+                        # Or a summary dict.
+                        
+                        if isinstance(bb_data, list) and len(bb_data) > 0:
+                            # Get the latest data point
+                            last_data = bb_data[-1]
+                            if "bodyBatteryValues" in last_data: # Detailed structure
+                                vals = last_data["bodyBatteryValues"]
+                                # 'charged' or 'value' usually present
+                                for key in ["charged", "value", "mostRecentBodyBattery"]:
+                                    if key in vals and vals[key] is not None:
+                                        val = int(vals[key])
+                                        logger.info(f"✅ Garmin: Found Body Battery ({key}): {val}")
+                                        return val
+                            
+                            # Flattened structure check
+                            if "bodyBattery" in last_data:
+                                val = int(last_data["bodyBattery"])
+                                logger.info(f"✅ Garmin: Found Body Battery (flat): {val}")
+                                return val
+                                
+                    # --- C. User Summary (Fallback 2) ---
+                    # get_user_summary(date) is very standard
+                    summary = self.garmin_client.get_user_summary(today)
+                    if summary:
+                         # Check for various keys known to appear in summaries
+                         for key in ["bodyBattery", "averageBodyBattery", "maxBodyBattery", "endOfDayBodyBattery"]:
+                             if key in summary and summary[key] is not None:
+                                 val = int(summary[key])
+                                 logger.info(f"✅ Garmin: Found User Summary ({key}): {val}")
+                                 return val
 
-                # Simplify: User Summary usually has 'minBodyBattery', 'maxBodyBattery', 'endOfDayBodyBattery'
-                if 'endOfDayBodyBattery' in stats and stats['endOfDayBodyBattery']:
-                     return int(stats['endOfDayBodyBattery'])
-                if 'maxBodyBattery' in stats and stats['maxBodyBattery']:
-                    # Max BB is a decent proxy for "Morning Readiness"
-                    return int(stats['maxBodyBattery'])
+                except Exception as e_bb:
+                    logger.warning(f"Garmin Body Battery fetch failed: {e_bb}")
 
             except Exception as e:
                 logger.error(f"Failed to fetch Garmin data: {e}")
         
         # 4. Default
-        return 80
+        logger.info("ℹ️ Garmin: No data found, returning default 50.")
+        return 50

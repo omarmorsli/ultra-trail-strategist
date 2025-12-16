@@ -13,6 +13,10 @@ st.set_page_config(page_title="Ultra-Trail Strategist", page_icon="🏃‍♂️
 # Load Env
 load_dotenv()
 
+# Config Logging
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 # Imports (cached)
 @st.cache_resource
 def load_agent():
@@ -70,7 +74,7 @@ with st.sidebar:
         readiness_source = "Garmin (Auto)"
     else:
         st.warning("⚠️ Garmin Disconnected")
-        auto_readiness = 80
+        auto_readiness = 50
         readiness_source = "Manual"
 
     st.divider()
