@@ -5,6 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from ultra_trail_strategist.feature_engineering.pace_model import PacePredictor
+from ultra_trail_strategist.feature_engineering.fatigue_model import FatigueModel
 from ultra_trail_strategist.mcp_server import get_activity_streams
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,6 @@ class PacerAgent:
             streams = []
 
         if not streams:
-            return "PACING PLAN: Insufficient data to generate ML predictions."
             return {"report": "PACING PLAN: Insufficient data to generate ML predictions.", "data": []}
 
         # 2. Train Model
@@ -46,14 +46,32 @@ class PacerAgent:
         structured_data = [] # For Dashboard Plotting
         total_time_min = 0
         
+        # Initialize Physiology Model (Default CP 4:30 min/km for now)
+        fatigue_model = FatigueModel(critical_pace_min_km=4.5)
+        
         for i, seg in enumerate(segments):
-            pace_min_km = self.pace_model.predict_segment(seg.avg_grade)
-            segment_time_min = pace_min_km * (seg.length / 1000)
+            # 1. Base ML Prediction (Fresh State)
+            base_pace = self.pace_model.predict_segment(seg.avg_grade)
+            
+            # 2. Check Fatigue Status
+            penalty = fatigue_model.get_penalty_factor()
+            
+            # 3. Apply Penalty (Slow down if exhausted)
+            pace_min_km = base_pace * penalty
+            
+            # 4. Update Physiological State based on actual effort
+            seg_len_km = seg.length / 1000
+            fatigue_model.update_balance(pace_min_km, seg_len_km)
+            
+            segment_time_min = pace_min_km * seg_len_km
             total_time_min += segment_time_min
             
+            # Formatting note: Add * if penalty applied
+            note = " (BONK!)" if penalty > 1.1 else ""
+            
             predicted_splits.append(
-                f"- Seg {i+1} ({seg.type.value}, {seg.length/1000:.1f}km, {seg.avg_grade:.1f}%): "
-                f"{pace_min_km:.1f} min/km | {segment_time_min:.0f} min"
+                f"- Seg {i+1} ({seg.type.value}, {seg_len_km:.1f}km, {seg.avg_grade:.1f}%): "
+                f"{pace_min_km:.1f} min/km | {segment_time_min:.0f} min{note}"
             )
             
             structured_data.append({
@@ -61,7 +79,8 @@ class PacerAgent:
                 "start_dist": seg.start_dist,
                 "end_dist": seg.end_dist,
                 "pace_min_km": pace_min_km,
-                "time_min": segment_time_min
+                "time_min": segment_time_min,
+                "fatigue_level": fatigue_model.get_exhaustion_level() # New data point!
             })
 
         total_hours = total_time_min / 60

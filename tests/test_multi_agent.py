@@ -27,7 +27,7 @@ class TestSpecialists(unittest.TestCase):
         result = loop.run_until_complete(agent.generate_pacing_plan(segments, history))
         loop.close()
         
-        self.assertIn("Insufficient data", result)
+        self.assertIn("Insufficient data", result["report"])
 
     @patch("ultra_trail_strategist.agent.specialists.nutritionist.get_race_forecast", new_callable=AsyncMock)
     def test_nutritionist_flow(self, mock_weather):

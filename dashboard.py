@@ -148,6 +148,22 @@ if uploaded_file or demo_mode:
                         fig_pace.update_layout(yaxis_title="Pace (min/km)")
                         st.plotly_chart(fig_pace, use_container_width=True)
 
+                        # Visualize Physiological Battery (W' Balance)
+                        battery_data = []
+                        for const in pace_data:
+                            # Invert exhaustion (0.0 -> 1.0) to Battery (100% -> 0%)
+                            exhaustion = const.get("fatigue_level", 0.0)
+                            battery = (1.0 - exhaustion) * 100.0
+                            
+                            battery_data.append({"distance": const["start_dist"], "battery": battery})
+                            battery_data.append({"distance": const["end_dist"], "battery": battery})
+                            
+                        df_battery = pd.DataFrame(battery_data)
+                        fig_batt = px.area(df_battery, x="distance", y="battery", title="Physiological Battery (W' Balance)")
+                        fig_batt.update_yaxes(range=[0, 100], title="Energy Reserves (%)")
+                        fig_batt.update_traces(line_color='#2ECC71', fillcolor='rgba(46, 204, 113, 0.2)')
+                        st.plotly_chart(fig_batt, use_container_width=True)
+
                     st.text(result["pacing_report"])
                     
                 with tab3:
