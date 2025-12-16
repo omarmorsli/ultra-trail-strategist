@@ -94,7 +94,7 @@ graph TD
         Strategist -->|Orchestrate| Nutri[Nutritionist Agent]
         
         Pacer -->|Fetch| Strava((Strava API))
-        Pacer -->|Simulate| Fatigue[Fatigue Model (W')]
+        Pacer -->|Simulate| Fatigue["Fatigue Model (W')"]
         Pacer -->|Analyze| Drift[Drift Analyzer]
         Pacer -->|Predict Pace| ML[ML Model]
         
