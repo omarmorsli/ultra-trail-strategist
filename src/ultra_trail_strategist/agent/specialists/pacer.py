@@ -100,7 +100,25 @@ class PacerAgent:
                 excess_hours = current_hours - 3.0
                 drift_penalty = 1.0 + (0.02 * excess_hours)
             
-            total_penalty = w_prime_penalty * drift_penalty
+            # 3b. Check Surface Drag
+            surface_penalties = {
+                "asphalt": 1.0,
+                "concrete": 1.0,
+                "unpaved": 1.05,
+                "gravel": 1.05,
+                "dirt": 1.05,
+                "grass": 1.08,
+                "path": 1.10,
+                "track": 1.10,
+                "trail": 1.10,
+                "alpine": 1.25, # High alpine technical
+                "unknown": 1.05 # Conservative default for "unknown" in wild areas
+            }
+            # Fallback to key containing substring if direct match fails? No, simpler:
+            surface = getattr(seg, "surface", "unknown").lower()
+            surface_penalty = surface_penalties.get(surface, 1.05)
+            
+            total_penalty = w_prime_penalty * drift_penalty * surface_penalty
             
             # 4. Apply Penalty
             pace_min_km = base_pace * total_penalty

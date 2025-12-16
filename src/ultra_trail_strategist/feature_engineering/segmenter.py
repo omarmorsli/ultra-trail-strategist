@@ -12,6 +12,10 @@ class SegmentType(str, Enum):
     DESCENT = "Descent"
     FLAT = "Flat"
 
+from ultra_trail_strategist.data_ingestion.surface_client import SurfaceClient
+
+# ...
+
 class Segment(BaseModel):
     """
     Represents a tactical segment of the course.
@@ -23,6 +27,7 @@ class Segment(BaseModel):
     elevation_gain: float
     elevation_loss: float
     length: float
+    surface: str = "unknown"
 
 class CourseSegmenter:
     """
@@ -34,6 +39,7 @@ class CourseSegmenter:
         self.climb_threshold = 3.0  # %
         self.descent_threshold = -3.0 # %
         self.min_segment_length = 50.0 # meters (to avoid noise)
+        self.surface_client = SurfaceClient()
 
     def process(self) -> List[Segment]:
         """
@@ -106,6 +112,7 @@ class CourseSegmenter:
 
     def _create_segments(self, df: pl.DataFrame) -> List[Segment]:
         """Groups consecutive points of same type into Segments."""
+
         # Identification of groups: when type changes, new group starts.
         # Shift type to compare
         
@@ -123,12 +130,26 @@ class CourseSegmenter:
         # avg_grade (weighted by distance? or simple avg) -> simple avg of points is okay for now
         # ele gain/loss
         
+        # Also need lat/lon to query surface
+        # Assuming df has 'latitude' and 'longitude' (standard names from GPXProcessor?)
+        # Let's check GPXProcessor. It produces: lat, lon, elevation, time... 
+        # Wait, the column names might be 'lat', 'lon' or 'latitude', 'longitude'.
+        # Checking GPXProcessor code (not visible now but I should be careful).
+        # Usually xml parsing yields 'lat', 'lon'.
+        # I'll try to aggregate "lat" and "lon" first().
+        
+        columns = df.columns
+        lat_col = "lat" if "lat" in columns else "latitude"
+        lon_col = "lon" if "lon" in columns else "longitude"
+        
         grouped = df.group_by(["group_id", "segment_type"], maintain_order=True).agg([
             pl.col("distance").min().alias("start_dist"),
             pl.col("distance").max().alias("end_dist"),
             pl.col("grade").mean().alias("avg_grade"),
             pl.col("elevation").first().alias("start_ele"),
             pl.col("elevation").last().alias("end_ele"),
+            pl.col(lat_col).first().alias("start_lat"),
+            pl.col(lon_col).first().alias("start_lon")
         ])
         
         segments = []
@@ -138,8 +159,14 @@ class CourseSegmenter:
             gain = max(0.0, ele_diff)
             loss = max(0.0, -ele_diff)
             
-            # Filter extremely short segments (micro-noise) - basic version
-            # if length < 10: continue 
+            # Query Surface (only for segments > 100m to check?)
+            # querying every segment -> safe rate limit?
+            surface = "unknown"
+            if length > 50:
+                try:
+                    surface = self.surface_client.get_surface_type(row["start_lat"], row["start_lon"])
+                except Exception as e:
+                    logger.warning(f"Surface lookup failed: {e}")
             
             segments.append(Segment(
                 start_dist=row["start_dist"],
@@ -148,7 +175,8 @@ class CourseSegmenter:
                 avg_grade=float(row["avg_grade"]),
                 elevation_gain=gain,
                 elevation_loss=loss,
-                length=length
+                length=length,
+                surface=surface
             ))
             
         return segments

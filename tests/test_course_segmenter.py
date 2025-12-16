@@ -27,7 +27,9 @@ class TestCourseSegmenter(unittest.TestCase):
                     "distance": d,
                     "elevation": e,
                     "elevation_smoothed": e,
-                    "segment_dist": step
+                    "segment_dist": step,
+                    "latitude": 45.0 + (i * 0.0001), # Mock coords
+                    "longitude": 6.0 + (i * 0.0001)
                 })
         
         add_points(0, 300, 100, 100) # Flat
