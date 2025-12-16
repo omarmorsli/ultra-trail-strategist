@@ -2,6 +2,7 @@ import logging
 import time
 from typing import Iterator, Dict, Any, Optional, List
 import requests
+import requests_cache
 from pydantic import BaseModel
 from ultra_trail_strategist.config.settings import settings
 
@@ -19,6 +20,7 @@ class StravaClient:
     """
     A robust client for the Strava API v3.
     Handles OAuth2 token refreshing, pagination, and error checking.
+    Uses persistent caching to minimize API calls.
     """
 
     def __init__(self):
@@ -28,7 +30,14 @@ class StravaClient:
         self.refresh_token = settings.STRAVA_REFRESH_TOKEN.get_secret_value()
         self.access_token: Optional[str] = None
         self.token_expires_at: int = 0
-        self.session = requests.Session()
+        
+        # Initialize Cached Session
+        # Cache expires after 1 hour (3600s)
+        self.session = requests_cache.CachedSession(
+            '.strava_cache', 
+            backend='sqlite', 
+            expire_after=3600
+        )
 
     def _ensure_valid_token(self) -> None:
         """

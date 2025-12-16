@@ -40,3 +40,9 @@ venv.bak/
 /*.gpx
 /*.json
 /data
+
+# Cache
+*.sqlite
+.strava_cache*
+.weather_cache*
+.surface_cache*

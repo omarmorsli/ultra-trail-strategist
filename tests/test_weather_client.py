@@ -1,11 +1,14 @@
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, MagicMock
 from ultra_trail_strategist.data_ingestion.weather_client import WeatherClient
 
 class TestWeatherClient(unittest.TestCase):
     
-    @patch("ultra_trail_strategist.data_ingestion.weather_client.requests.get")
-    def test_get_forecast(self, mock_get):
+    def test_get_forecast(self):
+        # Setup
+        client = WeatherClient()
+        client.session = Mock()
+        
         # Mock Response
         mock_response = Mock()
         mock_response.json.return_value = {
@@ -14,28 +17,36 @@ class TestWeatherClient(unittest.TestCase):
                 "precipitation": [0.0, 0.0, 0.5]
             }
         }
-        mock_get.return_value = mock_response
+        mock_response.raise_for_status = Mock()
+        client.session.get.return_value = mock_response
         
-        client = WeatherClient()
+        # Execute
         data = client.get_forecast(45.0, 6.0)
         
+        # Verify
         self.assertIn("hourly", data)
         self.assertEqual(data["hourly"]["temperature_2m"][0], 10.0)
+        client.session.get.assert_called_once()
 
-    @patch("ultra_trail_strategist.data_ingestion.weather_client.requests.get")
-    def test_get_current_conditions_rainy(self, mock_get):
+    def test_get_current_conditions_rainy(self):
+        # Setup
+        client = WeatherClient()
+        client.session = Mock()
+        
         mock_response = Mock()
         mock_response.json.return_value = {
             "hourly": {
                 "temperature_2m": [10.0] * 12,
-                "precipitation": [1.0] * 12  # 12mm total > 5mm -> Heavy? No, Wait logic is > 5 total 
+                "precipitation": [1.0] * 12  # 12mm total > 5mm -> Heavy Rain
             }
         }
-        mock_get.return_value = mock_response
+        mock_response.raise_for_status = Mock()
+        client.session.get.return_value = mock_response
         
-        client = WeatherClient()
+        # Execute
         summary = client.get_current_conditions(45.0, 6.0)
         
+        # Verify
         self.assertIn("Heavy Rain", summary)
         self.assertIn("10.0°C", summary)
 

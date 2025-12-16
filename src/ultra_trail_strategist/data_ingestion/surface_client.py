@@ -1,5 +1,6 @@
 import logging
 import requests
+import requests_cache
 from typing import Dict
 
 logger = logging.getLogger(__name__)
@@ -8,11 +9,17 @@ class SurfaceClient:
     """
     Client for querying OpenStreetMap (OSM) via the Overpass API 
     to determine surface types (e.g., asphalt, gravel, path).
+    Uses persistent caching (30 days).
     """
     
     def __init__(self):
         self.overpass_url = "http://overpass-api.de/api/interpreter"
-        self.cache: Dict[str, str] = {} # Simple in-memory cache
+        # Cache for 30 days (surface types rarely change)
+        self.session = requests_cache.CachedSession(
+            '.surface_cache', 
+            backend='sqlite', 
+            expire_after=2592000
+        )
 
     def get_surface_type(self, lat: float, lon: float) -> str:
         """
@@ -40,7 +47,7 @@ class SurfaceClient:
         """
         
         try:
-            response = requests.get(self.overpass_url, params={'data': query}, timeout=5)
+            response = self.session.get(self.overpass_url, params={'data': query}, timeout=5)
             response.raise_for_status()
             data = response.json()
             

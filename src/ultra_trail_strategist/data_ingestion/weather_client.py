@@ -1,15 +1,25 @@
 import logging
 from typing import Dict, Any, Optional
 import requests
+import requests_cache
 
 logger = logging.getLogger(__name__)
 
 class WeatherClient:
     """
     Client for OpenMeteo API to fetch weather forecasts.
+    Uses persistent caching.
     """
     BASE_URL = "https://api.open-meteo.com/v1/forecast"
     
+    def __init__(self):
+        # Cache for 2 hours
+        self.session = requests_cache.CachedSession(
+            '.weather_cache', 
+            backend='sqlite', 
+            expire_after=7200
+        )
+
     def get_forecast(self, latitude: float, longitude: float, days: int = 1, date: Optional[str] = None) -> Dict[str, Any]:
         """
         Fetches hourly forecast for the given location.
@@ -29,7 +39,7 @@ class WeatherClient:
             params["forecast_days"] = days
         
         try:
-            response = requests.get(self.BASE_URL, params=params)
+            response = self.session.get(self.BASE_URL, params=params)
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:

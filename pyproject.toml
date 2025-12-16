@@ -21,7 +21,8 @@ dependencies = [
     "fastmcp",
     "streamlit",
     "plotly",
-    "watchdog"
+    "watchdog",
+    "requests-cache"
 ]
 requires-python = ">=3.10"
 readme = "README.md"
