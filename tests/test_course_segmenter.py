@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock
 import polars as pl
 from ultra_trail_strategist.feature_engineering.segmenter import CourseSegmenter, SegmentType
 
@@ -39,6 +40,10 @@ class TestCourseSegmenter(unittest.TestCase):
         
         self.df = pl.DataFrame(data)
         self.segmenter = CourseSegmenter(self.df)
+        
+        # Mock SurfaceClient to prevent network calls
+        self.segmenter.surface_client = Mock()
+        self.segmenter.surface_client.get_surface_type.return_value = "trail"
 
     def test_calculate_grade(self):
         df = self.segmenter._calculate_grade(self.df)
