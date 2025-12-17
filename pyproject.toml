@@ -22,7 +22,9 @@ dependencies = [
     "streamlit",
     "plotly",
     "watchdog",
-    "requests-cache"
+    "requests-cache",
+    "folium",
+    "streamlit-folium"
 ]
 requires-python = ">=3.10"
 readme = "README.md"

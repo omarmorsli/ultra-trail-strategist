@@ -21,6 +21,7 @@ from ultra_trail_strategist.agent.strategist import StrategistAgent
 from ultra_trail_strategist.data_ingestion.health_client import HealthClient
 from ultra_trail_strategist.state_manager import RaceStateManager
 from ultra_trail_strategist.ui.components import render_sidebar, render_elevation_profile, render_pacing_charts, render_race_mode
+from ultra_trail_strategist.ui.map_renderer import render_course_map
 
 # --- Cached Loaders ---
 @st.cache_resource
@@ -74,9 +75,13 @@ def main():
         render_race_mode(state_manager, segments)
         
         st.divider()
+        st.subheader("Map & Radar")
+        show_radar = st.toggle("Show Weather Radar 🌧️", value=True)
+        render_course_map(course_df, show_radar=show_radar)
+
+        st.divider()
         st.subheader("Updated Projections")
         
-        # Check if we have a strategy to update, or need to run fresh?
         if st.button("🔄 Re-Calculate Strategy"):
              # Load Agent
             agent = load_agent()
@@ -100,8 +105,6 @@ def main():
                 st.session_state["final_state"] = final_state
                 st.session_state["last_run_mode"] = "live"
                 st.rerun()
-
-        # result display logic shared below?
         
     # --- Planning Mode ---
     else:
@@ -112,6 +115,10 @@ def main():
         with col2:
             st.metric("Total Distance", f"{course_df['distance'].max()/1000:.1f} km")
             st.metric("Total Segments", len(segments))
+            
+        st.subheader("Course Map")
+        show_radar = st.toggle("Show Weather Radar 🌧️")
+        render_course_map(course_df, show_radar=show_radar)
         
         if st.button("🚀 Generate Race Strategy"):
             agent = load_agent()
