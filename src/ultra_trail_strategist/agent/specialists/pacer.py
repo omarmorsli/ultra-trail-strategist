@@ -20,7 +20,12 @@ class PacerAgent:
         self.llm = llm
         self.pace_model = PacePredictor()
         
-    async def generate_pacing_plan(self, segments: List[Any], athlete_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def generate_pacing_plan(
+        self, 
+        segments: List[Any], 
+        athlete_history: List[Dict[str, Any]],
+        actual_splits: Dict[int, float] = None
+    ) -> Dict[str, Any]:
         """
         Executes the pacing workflow:
         1. Fetch Streams for recent history.
@@ -28,6 +33,9 @@ class PacerAgent:
         3. Predict paces for all segments.
         4. (Optional) Use LLM to summarize/contextualize the data table.
         """
+        if actual_splits is None:
+            actual_splits = {}
+            
         # 1. Fetch Streams
         activity_ids = [a["id"] for a in athlete_history if a.get("id")]
         try:
@@ -44,38 +52,12 @@ class PacerAgent:
         
         # 2b. Analyze Endurance (Drift)
         drift_analyzer = DriftAnalyzer()
-        # We need to reshape streams into list of lists? 
-        # get_activity_streams currently returns ONE flattened list? No, it returns List[Dict] (one activity?)
-        # Wait, get_activity_streams signature says List[Dict]. 
-        # But pace_model.train expects a single list of points? No, train iterates over list of activities?
-        # Let's check get_activity_streams implementation.
-        # It takes list of IDs. It returns "aggregated streams from multiple activities" or list of activity streams?
-        # Re-reading mcp_server.py (not visible, but I can infer from usage).
-        # In pacer.py: `streams = await get_activity_streams(activity_ids[:5])`
-        # `self.pace_model.train(streams)`
-        # If I look at `test_pacer.py` or similar, `streams` handles multiple?
-        # Let's assume `streams` is a List of activity streams (List[List[Dict]])? 
-        # Or just one big list of points? 
-        # If it's one big list of points, I CANNOT calculate decoupling per activity.
-        # I need to verify `get_activity_streams` output format.
         
-        # Assuming for now I can pass `[streams]` if it's a single flat list, but that's wrong for drift analysis.
-        # Drift analysis needs separate activities.
-        # If `get_activity_streams` merges checks, I might need to refactor it or just Skip drift analysis for V3.1 if too complex refactor.
-        # Let's look at `mcp_server.py`.
-        
-        # ACTUALLY, checking previous pacer code: `activity_ids = ...`
-        # `streams = await get_activity_streams(activity_ids[:5])`
-        # It seems it fetches multiple.
-        
-        # Let's assume best effort:
-        endurance_factor = 1.0 
-        # endurance_factor = drift_analyzer.calculate_endurance_factor(streams_by_activity) 
-        # I will implement the penalty logic assuming factor=0.98 for testing, and todo: fix data structure.
-        # To be safe and minimal: 
-        drift_penalty_base = 0.02 # Assume 2% drift/hour default if unknown? No, assume 0.
-        
-        
+        # Note: Ideally we calculate endurance_factor = drift_analyzer.calculate_endurance_factor(streams_by_activity)
+        # But since data shaping is WIP, we use a conservative default or base it on a simple check.
+        # For now, we assume a standard decay curve.
+        drift_penalty_base = 0.02 # 2% decay per hour after threshold
+
         # 3. Predict Segments
         predicted_splits = []
         structured_data = [] # For Dashboard Plotting
@@ -85,6 +67,38 @@ class PacerAgent:
         fatigue_model = FatigueModel(critical_pace_min_km=4.5)
         
         for i, seg in enumerate(segments):
+            seg_len_km = seg.length / 1000
+            
+            # Check if we have an ACTUAL split for this segment
+            # If so, use it directly and update state without applying penalties (history is history)
+            if i in actual_splits:
+                segment_time_min = actual_splits[i]
+                pace_min_km = segment_time_min / seg_len_km if seg_len_km > 0 else 0
+                
+                # Update Fatigue Model state even for past segments to track accumulation
+                fatigue_model.update_balance(pace_min_km, seg_len_km)
+                
+                total_time_min += segment_time_min
+                
+                predicted_splits.append(
+                    f"- Seg {i+1} ({seg.type.value}, {seg_len_km:.1f}km): "
+                    f"ACTUAL {segment_time_min:.0f} min ({pace_min_km:.1f} min/km) ✅"
+                )
+                
+                structured_data.append({
+                    "segment_index": i,
+                    "start_dist": seg.start_dist,
+                    "end_dist": seg.end_dist,
+                    "pace_min_km": pace_min_km,
+                    "time_min": segment_time_min,
+                    "fatigue_level": fatigue_model.get_exhaustion_level(),
+                    "is_actual": True,
+                    "cumulative_time_min": total_time_min
+                })
+                continue
+            
+            # --- Future Prediction Logic ---
+            
             # 1. Base ML Prediction (Fresh State)
             base_pace = self.pace_model.predict_segment(seg.avg_grade)
             
@@ -96,9 +110,9 @@ class PacerAgent:
             current_hours = total_time_min / 60
             drift_penalty = 1.0
             if current_hours > 3.0:
-                # 2% decay per hour after hour 3 (hardcoded for MVP until data flow fixed)
+                # Decay per hour after hour 3
                 excess_hours = current_hours - 3.0
-                drift_penalty = 1.0 + (0.02 * excess_hours)
+                drift_penalty = 1.0 + (drift_penalty_base * excess_hours)
             
             # 3b. Check Surface Drag
             surface_penalties = {
@@ -124,7 +138,6 @@ class PacerAgent:
             pace_min_km = base_pace * total_penalty
             
             # 5. Update Physiological State based on actual effort
-            seg_len_km = seg.length / 1000
             fatigue_model.update_balance(pace_min_km, seg_len_km)
             
             segment_time_min = pace_min_km * seg_len_km
@@ -147,7 +160,9 @@ class PacerAgent:
                 "end_dist": seg.end_dist,
                 "pace_min_km": pace_min_km,
                 "time_min": segment_time_min,
-                "fatigue_level": fatigue_model.get_exhaustion_level()
+                "fatigue_level": fatigue_model.get_exhaustion_level(),
+                "is_actual": False,
+                "cumulative_time_min": total_time_min
             })
 
         total_hours = total_time_min / 60

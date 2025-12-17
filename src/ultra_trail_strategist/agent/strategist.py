@@ -23,6 +23,11 @@ class RaceState(TypedDict):
     readiness: int          # Athlete recovery score (0-100)
     race_date: Optional[str] = None # YYYY-MM-DD
     final_strategy: str     # Output from Principal
+    
+    # Phase 2: Live Tracking
+    actual_splits: Optional[Dict[int, float]] # segment_index -> actual minutes
+    current_segment_index: Optional[int]
+    start_time: Optional[str]
 
 class StrategistAgent:
     """
@@ -89,7 +94,8 @@ class StrategistAgent:
         # Need segments and history
         result = await self.pacer.generate_pacing_plan(
             state["segments"], 
-            state["athlete_history"]
+            state["athlete_history"],
+            actual_splits=state.get("actual_splits", {})
         )
         return {"pacing_report": result["report"], "pacing_data": result["data"]}
 

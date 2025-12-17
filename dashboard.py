@@ -2,8 +2,6 @@ import streamlit as st
 import os
 import asyncio
 import tempfile
-import plotly.express as px
-import plotly.graph_objects as go
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -17,132 +15,146 @@ load_dotenv()
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# Imports (cached)
+# --- Imports ---
+from ultra_trail_strategist.pipeline import RaceDataPipeline
+from ultra_trail_strategist.agent.strategist import StrategistAgent
+from ultra_trail_strategist.data_ingestion.health_client import HealthClient
+from ultra_trail_strategist.state_manager import RaceStateManager
+from ultra_trail_strategist.ui.components import render_sidebar, render_elevation_profile, render_pacing_charts, render_race_mode
+
+# --- Cached Loaders ---
 @st.cache_resource
 def load_agent():
-    # Lazy import to avoid loading heavy libs until needed
-    import sys
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
-    from ultra_trail_strategist.pipeline import RaceDataPipeline
-    from ultra_trail_strategist.agent.strategist import StrategistAgent
     return StrategistAgent()
 
-@st.cache_data
-def process_gpx(file_content):
-    import sys
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
-    from ultra_trail_strategist.pipeline import RaceDataPipeline
+# --- Main App ---
+def main():
+    st.title("🏃‍♂️ Ultra-Trail Strategist AI")
+
+    # Init Components
+    health_client = HealthClient()
+    state_manager = RaceStateManager() 
     
-    # Save to temp file because pipeline expects path
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".gpx") as tmp:
-        tmp.write(file_content)
-        tmp_path = tmp.name
+    # --- Sidebar ---
+    uploaded_file, race_date, demo_mode, readiness = render_sidebar(health_client)
+    mode = st.sidebar.radio("App Mode", ["Planning 📝", "Live Race ⏱️"])
+
+    # --- Data Loading ---
+    gpx_path = None
+    if demo_mode:
+        gpx_path = "data/dummy.gpx"
+    elif uploaded_file:
+        # Save uploaded file
+        # Ensure data dir exists
+        os.makedirs("data", exist_ok=True)
+        gpx_path = f"data/{uploaded_file.name}"
+        with open(gpx_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+    if not gpx_path:
+        st.info("👈 Please upload a GPX file or select Demo Mode to start.")
+        st.stop()
         
-    pipeline = RaceDataPipeline(tmp_path)
-    segments = pipeline.run()
+    # --- Initialize Pipeline ---
+    pipeline = RaceDataPipeline(gpx_path)
     
-    # Also get raw df for plotting
-    df = pipeline.df.to_pandas()
+    # Simple caching of pipeline results in session state to avoid re-parsing on every interaction
+    if "pipeline_gpx" not in st.session_state or st.session_state["pipeline_gpx"] != gpx_path:
+        with st.spinner("Processing Course Data..."):
+            pipeline.run()
+            st.session_state["pipeline_obj"] = pipeline
+            st.session_state["pipeline_gpx"] = gpx_path
     
-    return segments, df, tmp_path
+    pipeline = st.session_state["pipeline_obj"]
+    segments = pipeline.get_segments()
+    course_df = pipeline.get_dataframe()
 
-# --- UI ---
-st.title("🏃‍♂️ Ultra-Trail Strategist AI")
-from ultra_trail_strategist.data_ingestion.health_client import HealthClient
-st.markdown("### Intelligent Race Strategy & Pacing")
-
-# Init Clients
-health_client = HealthClient()
-
-# Import UI Components
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
-from ultra_trail_strategist.ui.components import render_sidebar, render_elevation_profile, render_pacing_charts
-
-# Sidebar
-uploaded_file, race_date, demo_mode, readiness = render_sidebar(health_client)
-
-if uploaded_file or demo_mode:
-    with st.spinner("Analyzing Course Topography..."):
-        if demo_mode and not uploaded_file:
-             # Dummy Data for Demo
-            dates = pd.date_range(start='1/1/2024', periods=100, freq='T')
-            df_dummy = pd.DataFrame({
-                'distance': [i*100 for i in range(100)],
-                'elevation': [1000 + (i*10 if i<50 else (100-i)*10) for i in range(100)],
-                'grade': [10 if i<50 else -10 for i in range(100)]
-            })
-            segments, df, tmp_path = [], df_dummy, "dummy"
-            # We skip actual agent processing in pure demo UI if not really running
-            st.warning("Running in pure Demo Visual Check Mode (No AI)")
-        else:
-            segments, df, tmp_path = process_gpx(uploaded_file.getvalue())
-
-    # 1. Course Visualization
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        st.subheader("Elevation Profile")
-        render_elevation_profile(df)
+    # --- Live Race Mode ---
+    if mode == "Live Race ⏱️":
+        render_race_mode(state_manager, segments)
         
-    with col2:
-        st.subheader("Stats")
-        total_dist = df["distance"].max() / 1000 if not df.empty else 0
-        total_gain = df[df["grade"] > 0]["elevation"].diff().sum() if not df.empty else 0 # Rough approx
+        st.divider()
+        st.subheader("Updated Projections")
         
-        st.metric("Distance", f"{total_dist:.1f} km")
-        st.metric("Segments", len(segments))
+        # Check if we have a strategy to update, or need to run fresh?
+        if st.button("🔄 Re-Calculate Strategy"):
+             # Load Agent
+            agent = load_agent()
+            race_state = state_manager.get_state()
+            
+            initial_state = {
+                "segments": segments,
+                "athlete_history": [],
+                "course_analysis": "",
+                "pacing_report": "",
+                "pacing_data": [],
+                "nutrition_report": "",
+                "readiness": readiness,
+                "race_date": str(race_date) if race_date else None,
+                "final_strategy": "",
+                "actual_splits": race_state.actual_splits
+            }
+            
+            with st.spinner("Re-Forecasting based on live splits..."):
+                final_state = asyncio.run(agent.workflow.ainvoke(initial_state))
+                st.session_state["final_state"] = final_state
+                st.session_state["last_run_mode"] = "live"
+                st.rerun()
+
+        # result display logic shared below?
         
-    # 2. AI Strategy
-    if st.button("Generate AI Strategy"):
-        if demo_mode:
-            st.error("Please upload a real GPX to generate a real strategy.")
-        else:
-            try:
-                agent = load_agent()
-                
-                initial_state = {
-                    "segments": segments,
-                    "athlete_history": [],
-                    "course_analysis": "",
-                    "pacing_report": "",
-                    "pacing_data": [],
-                    "nutrition_report": "",
-                    "readiness": readiness,
-                    "race_date": str(race_date),
-                    "final_strategy": ""
-                }
-                
-                with st.spinner("AI Agents working... (Fetching History, Weather, Calculating Splits)"):
-                    # Async wrapper for Streamlit
-                    async def run_agent():
-                        return await agent.workflow.ainvoke(initial_state)
-                    
-                    # Run in separate thread to avoid "loop already running" errors in Streamlit
-                    import concurrent.futures
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                        future = executor.submit(asyncio.run, run_agent())
-                        result = future.result()
-                
-                st.success("Strategy Generated!")
-                
-                tab1, tab2, tab3 = st.tabs(["🏁 Coach Strategy", "⏱ Pacing Plan", "🥗 Nutrition"])
-                
-                with tab1:
-                    st.markdown(result["final_strategy"])
-                    
-                with tab2:
-                    st.markdown("### ML Pacing Predictions")
-                    render_pacing_charts(result.get("pacing_data"))
-                    st.text(result["pacing_report"])
-                    
-                with tab3:
-                    st.markdown("### Weather-Adaptive Nutrition")
-                    st.text(result["nutrition_report"])
-                    
-            except Exception as e:
-                st.error(f"Error generating strategy: {e}")
+    # --- Planning Mode ---
+    else:
+        # Show Course Profile
+        col1, col2 = st.columns([3, 1])
+        with col1:
+             render_elevation_profile(course_df)
+        with col2:
+            st.metric("Total Distance", f"{course_df['distance'].max()/1000:.1f} km")
+            st.metric("Total Segments", len(segments))
+        
+        if st.button("🚀 Generate Race Strategy"):
+            agent = load_agent()
+            initial_state = {
+                "segments": segments,
+                "athlete_history": [],
+                "course_analysis": "",
+                "pacing_report": "",
+                "pacing_data": [],
+                "nutrition_report": "",
+                "readiness": readiness,
+                "race_date": str(race_date) if race_date else None,
+                "final_strategy": "",
+                "actual_splits": {} # Planning implies no actuals yet
+            }
+            
+            with st.spinner("Agents are analyzing segment by segment..."):
+                final_state = asyncio.run(agent.workflow.ainvoke(initial_state))
+                st.session_state["final_state"] = final_state
+                st.session_state["last_run_mode"] = "planning"
 
-else:
-    st.info("👆 Upload a GPX file to get started.")
+    # --- Result Display (Common) ---
+    if "final_state" in st.session_state:
+        result = st.session_state["final_state"]
+        
+        st.divider()
+        st.success("Strategy Ready!")
+        
+        tab1, tab2, tab3 = st.tabs(["🏁 Coach Strategy", "⏱ Pacing Plan", "🥗 Nutrition"])
+        
+        with tab1:
+            st.markdown(result["final_strategy"])
+            
+        with tab2:
+            st.markdown("### ML Pacing Predictions")
+            # If live mode, maybe highlight actuals vs predicted?
+            # The chart component logic in components.py should handle it if passed correct structure
+            render_pacing_charts(result.get("pacing_data"))
+            st.text(result["pacing_report"])
+            
+        with tab3:
+            st.markdown("### Weather-Adaptive Nutrition")
+            st.text(result["nutrition_report"])
 
+if __name__ == "__main__":
+    main()

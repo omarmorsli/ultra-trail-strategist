@@ -82,3 +82,64 @@ def render_pacing_charts(pacing_data):
     fig_batt.update_yaxes(range=[0, 100], title="Energy Reserves (%)")
     fig_batt.update_traces(line_color='#2ECC71', fillcolor='rgba(46, 204, 113, 0.2)')
     st.plotly_chart(fig_batt, use_container_width=True)
+
+def render_race_mode(state_manager, segments):
+    """
+    Renders the Live Race interface.
+    """
+    st.markdown("## ⏱️ Live Race Companion")
+    
+    state = state_manager.get_state()
+    current_idx = state.current_segment_index
+    
+    # Progress Bar
+    progress = min(current_idx / len(segments), 1.0) if segments else 0
+    st.progress(progress, text=f"Progress: {current_idx}/{len(segments)} Segments")
+    
+    # Display Segments Checklist
+    st.subheader("Checkpoints")
+    
+    if not segments:
+        st.info("No course loaded.")
+        return
+
+    # Just show the next few and the last few
+    # Or scrollable container? Let's do a simple expander list
+    
+    for i, seg in enumerate(segments):
+        is_completed = i < current_idx
+        is_next = i == current_idx
+        
+        # Determine status icon
+        if i in state.actual_splits:
+            status = f"✅ Done ({state.actual_splits[i]:.0f} min)"
+            color = "green"
+        elif is_next:
+            status = "🏃 IN PROGRESS"
+            color = "blue"
+        else:
+            status = "Upcoming"
+            color = "grey"
+            
+        with st.expander(f"Segment {i+1}: {seg.length/1000:.1f}km ({seg.type.value}) - {status}", expanded=is_next):
+            if is_completed:
+                st.write(f"Completed at: {state.actual_splits.get(i)} mins from start")
+            else:
+                st.write(f"Distance: {seg.end_dist/1000:.1f} km mark")
+                
+                # Check-in form
+                with st.form(key=f"checkin_{i}"):
+                    # Default: mock value based on length/avg pace? 
+                    # Simpler: User types minutes from start. 
+                    # V2: User types Time of Day (e.g. 14:30).
+                    # For MVP V3 Phase 2: Input is "Minutes Elapsed".
+                    arrival_input = st.number_input(
+                        "Elapsed Minutes since Start", 
+                        min_value=0.0, 
+                        value=state.actual_splits.get(i-1, 0.0) + 30.0, # Guess
+                        step=1.0
+                    )
+                    
+                    if st.form_submit_button("📍 Check In Here"):
+                        state_manager.update_checkpoint(i, arrival_input)
+                        st.rerun()
