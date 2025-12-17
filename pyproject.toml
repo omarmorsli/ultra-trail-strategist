@@ -24,7 +24,8 @@ dependencies = [
     "watchdog",
     "requests-cache",
     "folium",
-    "streamlit-folium"
+    "streamlit-folium",
+    "python-telegram-bot"
 ]
 requires-python = ">=3.10"
 readme = "README.md"
