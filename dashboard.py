@@ -21,7 +21,7 @@ from ultra_trail_strategist.agent.strategist import StrategistAgent
 from ultra_trail_strategist.data_ingestion.health_client import HealthClient
 from ultra_trail_strategist.state_manager import RaceStateManager
 from ultra_trail_strategist.ui.components import render_sidebar, render_elevation_profile, render_pacing_charts, render_race_mode
-from ultra_trail_strategist.ui.map_renderer import render_course_map
+from ultra_trail_strategist.ui.map_renderer import render_course_map, render_3d_course
 
 # --- Cached Loaders ---
 @st.cache_resource
@@ -75,9 +75,17 @@ def main():
         render_race_mode(state_manager, segments)
         
         st.divider()
-        st.subheader("Map & Radar")
-        show_radar = st.toggle("Show Weather Radar 🌧️", value=True)
-        render_course_map(course_df, show_radar=show_radar)
+        st.subheader("Map Visualization")
+        
+        map_tab1, map_tab2 = st.tabs(["🗺️ 2D Map & Radar", "🏔️ 3D Flyover"])
+        
+        with map_tab1:
+            show_radar = st.toggle("Show Weather Radar 🌧️", value=True, key="radar_live")
+            render_course_map(course_df, show_radar=show_radar)
+            
+        with map_tab2:
+            st.info("💡 Hold right-click to rotate/tilt the view.")
+            render_3d_course(course_df)
 
         st.divider()
         st.subheader("Updated Projections")
@@ -117,8 +125,16 @@ def main():
             st.metric("Total Segments", len(segments))
             
         st.subheader("Course Map")
-        show_radar = st.toggle("Show Weather Radar 🌧️")
-        render_course_map(course_df, show_radar=show_radar)
+        
+        map_tab1, map_tab2 = st.tabs(["🗺️ 2D Map & Radar", "🏔️ 3D Flyover"])
+        
+        with map_tab1:
+            show_radar = st.toggle("Show Weather Radar 🌧️", key="radar_plan")
+            render_course_map(course_df, show_radar=show_radar)
+            
+        with map_tab2:
+            st.info("💡 Hold right-click to rotate/tilt the view.")
+            render_3d_course(course_df)
         
         if st.button("🚀 Generate Race Strategy"):
             agent = load_agent()

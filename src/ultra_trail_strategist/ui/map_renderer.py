@@ -2,6 +2,77 @@ import folium
 import streamlit as st
 import pandas as pd
 from streamlit_folium import st_folium
+import pydeck as pdk
+
+def render_3d_course(course_df: pd.DataFrame):
+    """
+    Renders the course in 3D using PyDeck.
+    """
+    if course_df.empty:
+        st.warning("No data for 3D map.")
+        return
+
+    # Prepare data for PathLayer
+    # We need a list of coordinates [lon, lat, ele]
+    # Filter valid
+    valid = course_df.dropna(subset=['latitude', 'longitude', 'elevation'])
+    if valid.empty:
+        st.warning("No valid coordinate data.")
+        return
+
+    path_data = [
+        [row['longitude'], row['latitude'], row['elevation']] 
+        for _, row in valid.iterrows()
+    ]
+    
+    # Create a DataFrame for the layer (PyDeck likes dataframes or lists of dicts)
+    layer_data = pd.DataFrame({
+        "path": [path_data],
+        "name": ["Race Course"],
+        "color": [[255, 0, 0]] # Red
+    })
+
+    # Calculate view state
+    mid_idx = len(path_data) // 2
+    # Start view
+    start_lon, start_lat, _ = path_data[0]
+    mid_lon, mid_lat, _ = path_data[mid_idx]
+
+    view_state = pdk.ViewState(
+        latitude=mid_lat,
+        longitude=mid_lon,
+        zoom=11,
+        pitch=50, # 3D angle
+        bearing=0
+    )
+
+    # Define Layer
+    layer = pdk.Layer(
+        "PathLayer",
+        data=layer_data,
+        pickable=True,
+        get_color="color",
+        width_scale=20,
+        width_min_pixels=2,
+        get_path="path",
+        get_width=5
+    )
+
+    # Tooltip
+    tooltip = {
+        "html": "<b>Race Course</b>",
+        "style": {"background": "grey", "color": "white", "font-family": "sans-serif", "z-index": "10000"}
+    }
+
+    # Render
+    r = pdk.Deck(
+        layers=[layer],
+        initial_view_state=view_state,
+        tooltip=tooltip,
+        map_style=None # Usage of Mapbox styles requires a token. Defaulting to Carto (None) for "out of box" support.
+    )
+    
+    st.pydeck_chart(r)
 
 def render_course_map(course_df: pd.DataFrame, show_radar: bool = False):
     """
