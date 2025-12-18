@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Optional, TypedDict
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
 from langgraph.graph import END, StateGraph
+from pydantic import SecretStr
 
 from ultra_trail_strategist.agent.specialists.nutritionist import NutritionistAgent
 from ultra_trail_strategist.agent.specialists.pacer import PacerAgent
@@ -62,11 +62,6 @@ class StrategistAgent:
         # Edges
         workflow.set_entry_point("analyze_course")
         workflow.add_edge("analyze_course", "fetch_history")
-
-        # Parallel Execution: After history is fetched, run Pacer and Nutritionist
-        # Note: LangGraph doesn't do true async parallel by default without explicit fan-out,
-        # but structurally they are independent. We'll run them sequentially in graph for simplicity
-        # or use map-reduce if needed. Here: Sequential for clarity (History -> Pacer -> Nutrition -> Final)
         workflow.add_edge("fetch_history", "run_pacer")
         workflow.add_edge("run_pacer", "run_nutritionist")
         workflow.add_edge("run_nutritionist", "write_final_strategy")
@@ -134,21 +129,24 @@ class StrategistAgent:
         advice = "Aim for a strong, steady finish."
         if readiness < 50:
             mode = "CONSERVATIVE (High Risk of Injury/Burnout)"
-            advice = "Your recovery is low. Prioritize finishing over time. Start much slower than the pacing plan suggests."
+            advice = "Your recovery is low. Prioritize finishing over time. Start much slower."
         elif readiness > 85:
             mode = "AGGRESSIVE (PR Attempt)"
             advice = "You are primed and ready. Attack the hills and push the flats."
 
-        system_prompt = f"""You are the Principal Ultra-Trail Coach.
-        You have received reports from your specialist team (Pacer and Nutritionist).
-        Your job is to synthesize these into a single, cohesive, motivating race strategy document for the athlete.
-        
-        CURRENT MODE: {mode} ({readiness}/100 Readiness)
-        STRATEGIC DIRECTIVE: {advice}
-        
-        Do not just copy-paste. Weave the nutrition advice into the pacing strategy.
-        Adjust the tone to reflect the Current Mode.
-        """
+        system_prompt = (
+            f"You are the Principal Ultra-Trail Coach.\\n"
+            f"You have received reports from reports from your specialist team "
+            f"(Pacer and Nutritionist).\\n"
+            f"Your job is to synthesize these into a single, cohesive, motivating race "
+            f"strategy document for the athlete.\\n"
+            f"\\n"
+            f"CURRENT MODE: {mode} ({readiness}/100 Readiness)\\n"
+            f"STRATEGIC DIRECTIVE: {advice}\\n"
+            f"\\n"
+            f"Do not just copy-paste. Weave the nutrition advice into the pacing strategy.\\n"
+            f"Adjust the tone to reflect the Current Mode.\\n"
+        )
 
         human_template = """
         COURSE: {course}

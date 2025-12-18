@@ -1,23 +1,10 @@
 import asyncio
+import logging
 import os
 
 import streamlit as st
 from dotenv import load_dotenv
 
-# App Title & Config
-st.set_page_config(page_title="Ultra-Trail Strategist", page_icon="🏃‍♂️", layout="wide")
-
-# Load Env
-load_dotenv()
-
-# Config Logging
-import logging
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-
-# --- Imports ---
 from ultra_trail_strategist.agent.strategist import StrategistAgent
 from ultra_trail_strategist.data_ingestion.health_client import HealthClient
 from ultra_trail_strategist.pipeline import RaceDataPipeline
@@ -29,6 +16,17 @@ from ultra_trail_strategist.ui.components import (
     render_sidebar,
 )
 from ultra_trail_strategist.ui.map_renderer import render_3d_course, render_course_map
+
+# Config Logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
+# Load Env
+load_dotenv()
+
+# App Title & Config
+st.set_page_config(page_title="Ultra-Trail Strategist", page_icon="🏃‍♂️", layout="wide")
 
 
 # --- Cached Loaders ---
@@ -180,7 +178,7 @@ def main():
         with tab2:
             st.markdown("### ML Pacing Predictions")
             # If live mode, maybe highlight actuals vs predicted?
-            # The chart component logic in components.py should handle it if passed correct structure
+            # The chart component logic in components.py should handle it.
             render_pacing_charts(result.get("pacing_data"))
             st.text(result["pacing_report"])
 

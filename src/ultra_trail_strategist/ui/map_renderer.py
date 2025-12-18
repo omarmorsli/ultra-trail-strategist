@@ -76,7 +76,7 @@ def render_3d_course(course_df: pd.DataFrame):
         layers=[layer],
         initial_view_state=view_state,
         tooltip=tooltip,
-        map_style=None,  # Usage of Mapbox styles requires a token. Defaulting to Carto (None) for "out of box" support.
+        map_style=None,  # Defaulting to Carto (None) for "out of box" support.
     )
 
     st.pydeck_chart(r)
@@ -104,7 +104,7 @@ def render_course_map(course_df: pd.DataFrame, show_radar: bool = False):
     m = folium.Map(location=[avg_lat, avg_lon], zoom_start=11, tiles="OpenStreetMap")
 
     # 1. Plot Course Track
-    points = list(zip(valid_points["latitude"], valid_points["longitude"]))
+    points = list(zip(valid_points["latitude"], valid_points["longitude"]))  # noqa: B905
     folium.PolyLine(points, color="red", weight=4, opacity=0.8, tooltip="Course Track").add_to(m)
 
     # 2. Add Segments Markers (Start/End)

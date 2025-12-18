@@ -121,13 +121,10 @@ def render_race_mode(state_manager, segments):
         # Determine status icon
         if i in state.actual_splits:
             status = f"✅ Done ({state.actual_splits[i]:.0f} min)"
-            color = "green"
         elif is_next:
             status = "🏃 IN PROGRESS"
-            color = "blue"
         else:
             status = "Upcoming"
-            color = "grey"
 
         with st.expander(
             f"Segment {i + 1}: {seg.length / 1000:.1f}km ({seg.type.value}) - {status}",

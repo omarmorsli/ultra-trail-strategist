@@ -27,12 +27,12 @@ class TestDriftAnalyzer(unittest.TestCase):
         self.assertAlmostEqual(drift, 6.66, delta=0.5)
 
     def test_endurance_factor(self):
-        analyzer = DriftAnalyzer()
+        # analyzer = DriftAnalyzer()
         # 3 activities: 4% drift, 6% drift, 14% drift. Avg = 8%.
         # Penalty = 8 - 5 = 3%. Factor = 0.97
 
         # Mock calculation via decoupling method override or manual list passing
-        # Since I can't mock internal calls easily without patching, I'll pass streams that produce those drifts.
+        # Since I can't mock internal calls easily without patching, I'll pass streams that produce those drifts.  # noqa: E501
         # But constructing streams is verbose.
         # I trust calculate_decoupling works (tested above).
         # Let's test the aggregation logic directly by mocking calculate_decoupling?

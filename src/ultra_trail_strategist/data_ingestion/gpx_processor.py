@@ -67,7 +67,7 @@ class GPXProcessor:
 
         # Calculate Haversine distance between consecutive points
         # For simplicity and performance, we'll use a rough approximation or iterate.
-        # Since accuracy is key for ultra-running, we should use geodesic, but vectorizing it efficiently is tricky slightly.
+        # Since accuracy is key, we should use geodesic, but vectorizing it efficiently is tricky.
         # We will use a Haversine approximation within Polars expressions for speed,
         # or pre-calculate it. Given "Phase 1", let's use a numpy vectorization of Haversine.
 

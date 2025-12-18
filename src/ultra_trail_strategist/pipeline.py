@@ -45,7 +45,4 @@ class RaceDataPipeline:
     def get_dataframe(self) -> pl.DataFrame:
         return (
             self.df.to_pandas()
-        )  # Convert to pandas for easy plotting in Streamlit if needed, or keep pl?
-        # Dashboard expects pandas for plotly usually. Let's return pandas to be safe for now,
-        # or check dashboard usage. Dashboard calls `pipeline.get_dataframe()` and passes to `render_elevation_profile(course_df)`.
-        # `render_elevation_profile` uses plotly express which handles pandas best.
+        )

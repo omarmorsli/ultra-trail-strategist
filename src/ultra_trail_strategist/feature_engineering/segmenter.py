@@ -6,6 +6,8 @@ import numpy as np
 import polars as pl
 from pydantic import BaseModel
 
+from ultra_trail_strategist.data_ingestion.surface_client import SurfaceClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,7 +17,7 @@ class SegmentType(str, Enum):
     FLAT = "Flat"
 
 
-from ultra_trail_strategist.data_ingestion.surface_client import SurfaceClient
+
 
 # ...
 
@@ -70,10 +72,10 @@ class CourseSegmenter:
 
         # Shift to calculate deltas
         # Using numpy for robust nan handling and small divisors
-        ele = df[ele_col].to_numpy()
-        dist = df["segment_dist"].to_numpy()  # segment_dist is delta dist
+        # ele = df[ele_col].to_numpy()
+        # dist = df["segment_dist"].to_numpy()  # segment_dist is delta dist
 
-        # d_dist is already in 'segment_dist' column for the point i (dist from i to i+1 is usually stored,
+        # d_dist is already in 'segment_dist' column.
         # BUT our GPX processor stored dist from i-1 to i in segment_dist due to shift logic?
         # Let's verify GPXProcessor logic:
         # "dist[i] is distance from point i-1 to point i" (after the roll and fix).

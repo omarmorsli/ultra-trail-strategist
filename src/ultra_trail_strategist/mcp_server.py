@@ -25,7 +25,7 @@ async def get_recent_activities(limit: int = 5) -> List[Dict[str, Any]]:
         limit: Number of activities to retrieve (default 5).
     """
     activities = []
-    # StravaClient is synchronous, so we treat it as such or wrap in executor if needed for high load.
+    # StravaClient is synchronous, so we treat it as such or wrap in executor if needed.
     # For now, direct call is fine as FastMCP handles async wrapper.
     iterator = strava.get_athlete_activities(limit=limit)
     for act in iterator:

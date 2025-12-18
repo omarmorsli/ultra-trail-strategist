@@ -59,7 +59,7 @@ class TestStravaClient(unittest.TestCase):
         mock_response_empty.json.return_value = []
         mock_response_empty.raise_for_status.return_value = None
 
-        self.client.session.get.side_effect = [ # type: ignore
+        self.client.session.get.side_effect = [  # type: ignore
             mock_response_p1,
             mock_response_p2,
             mock_response_empty,

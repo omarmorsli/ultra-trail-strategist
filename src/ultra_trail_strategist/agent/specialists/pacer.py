@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ultra_trail_strategist.feature_engineering.drift_analyzer import DriftAnalyzer
 from ultra_trail_strategist.feature_engineering.fatigue_model import FatigueModel
 from ultra_trail_strategist.feature_engineering.pace_model import PacePredictor
 from ultra_trail_strategist.mcp_server import get_activity_streams
@@ -56,11 +55,8 @@ class PacerAgent:
         self.pace_model.train(streams)
 
         # 2b. Analyze Endurance (Drift)
-        drift_analyzer = DriftAnalyzer()
+        # drift_analyzer = DriftAnalyzer()
 
-        # Note: Ideally we calculate endurance_factor = drift_analyzer.calculate_endurance_factor(streams_by_activity)
-        # But since data shaping is WIP, we use a conservative default or base it on a simple check.
-        # For now, we assume a standard decay curve.
         drift_penalty_base = 0.02  # 2% decay per hour after threshold
 
         # 3. Predict Segments
@@ -75,7 +71,7 @@ class PacerAgent:
             seg_len_km = seg.length / 1000
 
             # Check if we have an ACTUAL split for this segment
-            # If so, use it directly and update state without applying penalties (history is history)
+            # If so, use it directly and update state without applying penalties.
             if i in actual_splits:
                 segment_time_min = actual_splits[i]
                 pace_min_km = segment_time_min / seg_len_km if seg_len_km > 0 else 0
@@ -185,7 +181,7 @@ class PacerAgent:
             [
                 (
                     "system",
-                    "You are a professional Race Pacer. Summarize this split table into a concise pacing directive.",
+                    "You are a professional Race Pacer. Summarize this split table into a concise pacing directive.",  # noqa: E501
                 ),
                 ("human", f"Estimated Finish: {total_hours:.1f} hours.\nSplits:\n{data_block}"),
             ]

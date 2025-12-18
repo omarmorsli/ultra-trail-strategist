@@ -64,7 +64,7 @@ class TestStrategistAgent(unittest.TestCase):
         # Assertions
         self.assertIn("Course Stats", result["course_analysis"])
         self.assertEqual(result["athlete_history"][0]["name"], "Long Run")
-        # Check that we handled empty streams gracefully (or check pacing logic if proper streams provided)
+        # Check that we handled empty streams gracefully (or check pacing logic if proper streams provided)  # noqa: E501
         self.assertIn("Insufficient data", result["pacing_report"])
         self.assertIn("NUTRITION REPORT", result["nutrition_report"])
         self.assertIn("Start slow", result["final_strategy"])

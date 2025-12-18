@@ -41,11 +41,6 @@ class CrewBot:
             else:
                 last_idx = max(splits.keys()) if splits else -1
                 last_time = splits.get(last_idx, 0)
-
-                # Check next segment logic is rudimentary without full segment list here.
-                # ideally we load segments too, but state_manager doesn't persist static segment data.
-                # For V1, just report last know position.
-
                 msg = (
                     f"🏃 **Race Status Update**\n"
                     f"Last Check-in at Segment {last_idx + 1}: {last_time:.0f} mins elapsed.\n"

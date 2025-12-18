@@ -9,19 +9,23 @@ class TestGPXProcessor(unittest.TestCase):
     def setUp(self):
         self.processor = GPXProcessor()
         # Create a simple synthetic GPX content
-        self.mock_gpx = """
-        <gpx version="1.1" creator="UltraTrailTest">
-            <trk>
-                <name>Test Track</name>
-                <trkseg>
-                    <trkpt lat="45.0" lon="6.0"><ele>100.0</ele><time>2023-01-01T10:00:00Z</time></trkpt>
-                    <trkpt lat="45.001" lon="6.0"><ele>105.0</ele><time>2023-01-01T10:01:00Z</time></trkpt>
-                    <trkpt lat="45.002" lon="6.0"><ele>102.0</ele><time>2023-01-01T10:02:00Z</time></trkpt>
-                    <trkpt lat="45.003" lon="6.0"><ele>110.0</ele><time>2023-01-01T10:03:00Z</time></trkpt>
-                </trkseg>
-            </trk>
-        </gpx>
-        """
+        self.mock_gpx = (
+            '<gpx version="1.1" creator="UltraTrailTest">\n'
+            "    <trk>\n"
+            "        <name>Test Track</name>\n"
+            "        <trkseg>\n"
+            '            <trkpt lat="45.0" lon="6.0"><ele>100.0</ele>'
+            '                <time>2023-01-01T10:00:00Z</time></trkpt>\n'
+            '            <trkpt lat="45.001" lon="6.0"><ele>105.0</ele>'
+            '                <time>2023-01-01T10:01:00Z</time></trkpt>\n'
+            '            <trkpt lat="45.002" lon="6.0"><ele>102.0</ele>'
+            '                <time>2023-01-01T10:02:00Z</time></trkpt>\n'
+            '            <trkpt lat="45.003" lon="6.0"><ele>110.0</ele>'
+            '                <time>2023-01-01T10:03:00Z</time></trkpt>\n'
+            "        </trkseg>\n"
+            "    </trk>\n"
+            "</gpx>"
+        )
 
     def test_load_and_parse(self):
         self.processor.load_from_string(self.mock_gpx)

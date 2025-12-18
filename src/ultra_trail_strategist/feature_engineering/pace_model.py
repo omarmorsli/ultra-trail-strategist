@@ -39,7 +39,7 @@ class PacePredictor:
         velocities: List[float] = []
 
         for stream in activities_streams:
-            # We expect 'grade_smooth' and 'velocity_smooth' keys looking like Strava stream response
+            # We expect 'grade_smooth' and 'velocity_smooth' keys.
             # Strava returns { "grade_smooth": { "data": [...] }, ... }
             # Or if pre-processed, just lists. Assuming cleaned dict format here from our client.
 
