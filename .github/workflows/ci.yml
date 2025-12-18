@@ -23,7 +23,7 @@ jobs:
         cache: true
         
     - name: Install dependencies
-      run: pdm install
+      run: pdm install -G dev
 
     - name: Lint with Ruff
       run: pdm run ruff check .
