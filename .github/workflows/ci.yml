@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up library scripts
+      uses: pdm-project/setup-pdm@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: true
+        
+    - name: Install dependencies
+      run: pdm install
+
+    - name: Lint with Ruff
+      run: pdm run ruff check .
+
+    - name: Check types with Mypy
+      run: pdm run mypy .
+
+    - name: Test with Pytest
+      run: pdm run pytest

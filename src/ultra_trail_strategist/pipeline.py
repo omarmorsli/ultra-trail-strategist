@@ -1,16 +1,19 @@
 import logging
-import polars as pl
 from typing import List
+
+import polars as pl
+
 from ultra_trail_strategist.data_ingestion.gpx_processor import GPXProcessor
 from ultra_trail_strategist.feature_engineering.segmenter import CourseSegmenter, Segment
 
 logger = logging.getLogger(__name__)
 
+
 class RaceDataPipeline:
     """
     Orchestrates the ingestion and processing of race data.
     """
-    
+
     def __init__(self, gpx_file_path: str):
         self.gpx_file_path = gpx_file_path
         self.processor = GPXProcessor(file_path=gpx_file_path)
@@ -22,17 +25,17 @@ class RaceDataPipeline:
         Executes the pipeline: Load GPX -> Smooth -> Segment.
         """
         logger.info(f"Starting pipeline for {self.gpx_file_path}")
-        
+
         # 1. Load and Process GPX
         self.processor.load_from_file()
         self.processor.to_dataframe()
         self.df = self.processor.smooth_elevation()
-        
+
         # 2. Segmentation
         segmenter = CourseSegmenter(self.df)
         self.segments = segmenter.process()
-        self.df = segmenter.df # Capture enriched DF with grade/type
-        
+        self.df = segmenter.df  # Capture enriched DF with grade/type
+
         logger.info(f"Pipeline complete. Generated {len(self.segments)} segments.")
         return self.segments
 
@@ -40,8 +43,9 @@ class RaceDataPipeline:
         return self.segments
 
     def get_dataframe(self) -> pl.DataFrame:
-        return self.df .to_pandas() # Convert to pandas for easy plotting in Streamlit if needed, or keep pl?
-        # Dashboard expects pandas for plotly usually. Let's return pandas to be safe for now, 
+        return (
+            self.df.to_pandas()
+        )  # Convert to pandas for easy plotting in Streamlit if needed, or keep pl?
+        # Dashboard expects pandas for plotly usually. Let's return pandas to be safe for now,
         # or check dashboard usage. Dashboard calls `pipeline.get_dataframe()` and passes to `render_elevation_profile(course_df)`.
         # `render_elevation_profile` uses plotly express which handles pandas best.
-

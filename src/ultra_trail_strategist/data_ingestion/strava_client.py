@@ -1,20 +1,24 @@
 import logging
 import time
-from typing import Iterator, Dict, Any, Optional, List
+from typing import Any, Dict, Iterator, List, Optional
+
 import requests
 import requests_cache
 from pydantic import BaseModel
+
 from ultra_trail_strategist.config.settings import settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class StravaTokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     expires_at: int
     expires_in: int
+
 
 class StravaClient:
     """
@@ -30,13 +34,11 @@ class StravaClient:
         self.refresh_token = settings.STRAVA_REFRESH_TOKEN.get_secret_value()
         self.access_token: Optional[str] = None
         self.token_expires_at: int = 0
-        
+
         # Initialize Cached Session
         # Cache expires after 1 hour (3600s)
         self.session = requests_cache.CachedSession(
-            '.strava_cache', 
-            backend='sqlite', 
-            expire_after=3600
+            ".strava_cache", backend="sqlite", expire_after=3600
         )
 
     def _ensure_valid_token(self) -> None:
@@ -67,17 +69,17 @@ class StravaClient:
             response = requests.post(auth_url, data=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             # Validate response with Pydantic
             token_data = StravaTokenResponse(**data)
-            
+
             self.access_token = token_data.access_token
             # Update refresh token if a new one is returned
             self.refresh_token = token_data.refresh_token
             self.token_expires_at = token_data.expires_at
-            
+
             logger.info("Successfully refreshed Strava access token.")
-            
+
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to refresh Strava token: {e}")
             if e.response is not None:
@@ -90,15 +92,12 @@ class StravaClient:
         return {"Authorization": f"Bearer {self.access_token}"}
 
     def get_athlete_activities(
-        self, 
-        after: Optional[int] = None, 
-        before: Optional[int] = None,
-        limit: Optional[int] = None
+        self, after: Optional[int] = None, before: Optional[int] = None, limit: Optional[int] = None
     ) -> Iterator[Dict[str, Any]]:
         """
         Fetches athlete activities with automatic pagination.
         Yields individual activity dictionaries.
-        
+
         Args:
             after (int, optional): Timestamp to filter activities after.
             before (int, optional): Timestamp to filter activities before.
@@ -109,10 +108,7 @@ class StravaClient:
         count = 0
 
         while True:
-            params = {
-                "page": page,
-                "per_page": per_page
-            }
+            params = {"page": page, "per_page": per_page}
             if after:
                 params["after"] = after
             if before:
@@ -139,12 +135,23 @@ class StravaClient:
             if len(activities) < per_page:
                 # Reached the last page of results
                 break
-            
+
             page += 1
 
-    def get_activity_streams(self, activity_id: int, keys: List[str] = ["time", "distance", "altitude", "velocity_smooth", "grade_smooth", "heartrate"]) -> List[Dict[str, Any]]:
+    def get_activity_streams(
+        self,
+        activity_id: int,
+        keys: List[str] = [
+            "time",
+            "distance",
+            "altitude",
+            "velocity_smooth",
+            "grade_smooth",
+            "heartrate",
+        ],
+    ) -> List[Dict[str, Any]]:
         """
-        Fetches the detailed stream for a specific activity 
+        Fetches the detailed stream for a specific activity
         (lat/lng, elevation, time, etc.).
         """
         endpoint = f"{self.base_url}/activities/{activity_id}/streams"
@@ -156,11 +163,12 @@ class StravaClient:
         # For now, we'll use the default list provided in the signature.
         stream_keys_str = ",".join(keys)
         params = {"keys": stream_keys_str, "key_by_type": "true"}
-        
+
         try:
             response = self.session.get(endpoint, headers=self.build_headers(), params=params)
             response.raise_for_status()
-            return response.json()
+            data: List[Dict[str, Any]] = response.json()
+            return data
         except requests.exceptions.RequestException as e:
             logger.error(f"Error fetching stream for activity {activity_id}: {e}")
             raise

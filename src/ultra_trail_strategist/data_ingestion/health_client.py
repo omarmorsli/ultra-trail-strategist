@@ -1,10 +1,12 @@
-import os
 import logging
-from typing import Optional, Dict, Any
+import os
 from datetime import date
+from typing import Optional
+
 import garminconnect
 
 logger = logging.getLogger(__name__)
+
 
 class HealthClient:
     """
@@ -12,7 +14,7 @@ class HealthClient:
     Integrates with Garmin Connect if credentials are provided.
     Falls back to mock/manual values.
     """
-    
+
     def __init__(self):
         self.garmin_client = None
         self.email = os.getenv("GARMIN_EMAIL")
@@ -40,22 +42,22 @@ class HealthClient:
         2. Garmin Training Readiness
         3. Garmin Body Battery
         4. Default (80)
-        
+
         Args:
             manual_override: If provided (e.g. from UI), use this high priority.
-            
+
         Returns:
             int: 0-100 score.
         """
         # 1. Manual Override
         if manual_override is not None:
             return max(0, min(100, manual_override))
-            
+
         # 2. Garmin Integration
         if self.garmin_client:
             try:
                 today = date.today().isoformat()
-                
+
                 # --- A. Training Readiness ---
                 try:
                     # Generic method based on library common patterns
@@ -76,7 +78,9 @@ class HealthClient:
                             if isinstance(tr_data, list) and len(tr_data) > 0:
                                 if "score" in tr_data[-1]:
                                     val = int(tr_data[-1]["score"])
-                                    logger.info(f"✅ Garmin: Found Training Readiness (List): {val}")
+                                    logger.info(
+                                        f"✅ Garmin: Found Training Readiness (List): {val}"
+                                    )
                                     return val
                 except Exception as e_tr:
                     logger.warning(f"Garmin Readiness fetch failed: {e_tr}")
@@ -89,11 +93,11 @@ class HealthClient:
                         # Typically returns a list of dictionaries for 15min intervals
                         # [{'date':..., 'bodyBatteryValues': {'charged': 80, ...}}, ...]
                         # Or a summary dict.
-                        
+
                         if isinstance(bb_data, list) and len(bb_data) > 0:
                             # Get the latest data point
                             last_data = bb_data[-1]
-                            if "bodyBatteryValues" in last_data: # Detailed structure
+                            if "bodyBatteryValues" in last_data:  # Detailed structure
                                 vals = last_data["bodyBatteryValues"]
                                 # 'charged' or 'value' usually present
                                 for key in ["charged", "value", "mostRecentBodyBattery"]:
@@ -101,30 +105,35 @@ class HealthClient:
                                         val = int(vals[key])
                                         logger.info(f"✅ Garmin: Found Body Battery ({key}): {val}")
                                         return val
-                            
+
                             # Flattened structure check
                             if "bodyBattery" in last_data:
                                 val = int(last_data["bodyBattery"])
                                 logger.info(f"✅ Garmin: Found Body Battery (flat): {val}")
                                 return val
-                                
+
                     # --- C. User Summary (Fallback 2) ---
                     # get_user_summary(date) is very standard
                     summary = self.garmin_client.get_user_summary(today)
                     if summary:
-                         # Check for various keys known to appear in summaries
-                         for key in ["bodyBattery", "averageBodyBattery", "maxBodyBattery", "endOfDayBodyBattery"]:
-                             if key in summary and summary[key] is not None:
-                                 val = int(summary[key])
-                                 logger.info(f"✅ Garmin: Found User Summary ({key}): {val}")
-                                 return val
+                        # Check for various keys known to appear in summaries
+                        for key in [
+                            "bodyBattery",
+                            "averageBodyBattery",
+                            "maxBodyBattery",
+                            "endOfDayBodyBattery",
+                        ]:
+                            if key in summary and summary[key] is not None:
+                                val = int(summary[key])
+                                logger.info(f"✅ Garmin: Found User Summary ({key}): {val}")
+                                return val
 
                 except Exception as e_bb:
                     logger.warning(f"Garmin Body Battery fetch failed: {e_bb}")
 
             except Exception as e:
                 logger.error(f"Failed to fetch Garmin data: {e}")
-        
+
         # 4. Default
         logger.info("ℹ️ Garmin: No data found, returning default 50.")
         return 50

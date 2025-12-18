@@ -1,10 +1,10 @@
 import logging
-import asyncio
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from mcp.server.fastmcp import FastMCP
 
-from ultra_trail_strategist.data_ingestion.weather_client import WeatherClient
 from ultra_trail_strategist.data_ingestion.strava_client import StravaClient
+from ultra_trail_strategist.data_ingestion.weather_client import WeatherClient
 
 # Initialize FastMCP Server
 mcp = FastMCP("Strava MCP Server")
@@ -14,12 +14,13 @@ strava = StravaClient()
 weather = WeatherClient()
 logger = logging.getLogger("strava_mcp")
 
+
 @mcp.tool()
 async def get_recent_activities(limit: int = 5) -> List[Dict[str, Any]]:
     """
     Fetch the athlete's most recent activities from Strava.
     Useful for understanding current fitness and training volume.
-    
+
     Args:
         limit: Number of activities to retrieve (default 5).
     """
@@ -29,22 +30,25 @@ async def get_recent_activities(limit: int = 5) -> List[Dict[str, Any]]:
     iterator = strava.get_athlete_activities(limit=limit)
     for act in iterator:
         # Simplify output for LLM context window efficiency
-        activities.append({
-            "id": act.get("id"),
-            "name": act.get("name"),
-            "distance_km": act.get("distance", 0) / 1000,
-            "moving_time_min": act.get("moving_time", 0) / 60,
-            "total_elevation_gain": act.get("total_elevation_gain", 0),
-            "start_date": act.get("start_date_local"),
-            "average_heartrate": act.get("average_heartrate", "N/A")
-        })
+        activities.append(
+            {
+                "id": act.get("id"),
+                "name": act.get("name"),
+                "distance_km": act.get("distance", 0) / 1000,
+                "moving_time_min": act.get("moving_time", 0) / 60,
+                "total_elevation_gain": act.get("total_elevation_gain", 0),
+                "start_date": act.get("start_date_local"),
+                "average_heartrate": act.get("average_heartrate", "N/A"),
+            }
+        )
     return activities
+
 
 @mcp.tool()
 async def get_activity_analysis(activity_id: int) -> str:
     """
-    Analyze a specific past activity to extract performance metrics 
-    like GAP details or heart rate drift. 
+    Analyze a specific past activity to extract performance metrics
+    like GAP details or heart rate drift.
     (Currently returns raw stream summary).
     """
     # This is a placeholder for more complex analysis using get_activity_stream
@@ -52,12 +56,13 @@ async def get_activity_analysis(activity_id: int) -> str:
     try:
         streams = strava.get_activity_streams(activity_id)
         # Summarize just to show connection works
-        return f"Fetched streams for {activity_id}: Found keys {list(streams.keys())}"
+        return f"Fetched streams for {activity_id}: Count {len(streams)}"
     except Exception as e:
         return f"Error fetching activity {activity_id}: {str(e)}"
 
+
 @mcp.tool()
-async def get_activity_streams(activity_ids: List[int]) -> List[Dict[str, Any]]:
+async def get_activity_streams(activity_ids: List[int]) -> List[Any]:
     """
     Fetch detailed streams (telemetry) for a list of activities.
     Used for Machine Learning model training.
@@ -74,17 +79,19 @@ async def get_activity_streams(activity_ids: List[int]) -> List[Dict[str, Any]]:
             continue
     return streams
 
+
 @mcp.tool()
 async def get_race_forecast(latitude: float, longitude: float, date: Optional[str] = None) -> str:
     """
     Get the weather forecast for the race location.
-    
+
     Args:
         latitude: Latitude of the race start.
         longitude: Longitude of the race start.
         date: Optional YYYY-MM-DD date.
     """
     return weather.get_current_conditions(latitude, longitude, date=date)
+
 
 # Entry point for running the server directly
 if __name__ == "__main__":
