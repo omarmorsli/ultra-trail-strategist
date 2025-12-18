@@ -21,7 +21,7 @@ class TestStrategistAgent(unittest.TestCase):
 
         # Replace LLM with a RunnableLambda to satisfy LangChain type checks
 
-        agent.llm = RunnableLambda(lambda x: AIMessage(content="Start slow, finish strong."))
+        agent.llm = RunnableLambda(lambda x: AIMessage(content="Start slow, finish strong."))  # type: ignore[assignment]
         # IMPORTANT: Also update the sub-agents to use the fake LLM!
         agent.pacer.llm = agent.llm
         agent.nutritionist.llm = agent.llm

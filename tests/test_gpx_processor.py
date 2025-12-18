@@ -30,7 +30,8 @@ class TestGPXProcessor(unittest.TestCase):
     def test_load_and_parse(self):
         self.processor.load_from_string(self.mock_gpx)
         self.assertIsNotNone(self.processor._raw_gpx)
-        self.assertEqual(len(self.processor._raw_gpx.tracks), 1)
+        if self.processor._raw_gpx:
+            self.assertEqual(len(self.processor._raw_gpx.tracks), 1)
 
     def test_to_dataframe_structure(self):
         self.processor.load_from_string(self.mock_gpx)

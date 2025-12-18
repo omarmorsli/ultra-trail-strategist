@@ -44,5 +44,5 @@ class RaceDataPipeline:
 
     def get_dataframe(self) -> pl.DataFrame:
         return (
-            self.df.to_pandas()
+            pl.DataFrame(self.df.to_pandas())
         )

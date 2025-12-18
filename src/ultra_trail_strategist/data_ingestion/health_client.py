@@ -3,7 +3,7 @@ import os
 from datetime import date
 from typing import Optional
 
-import garminconnect
+import garminconnect  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 

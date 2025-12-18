@@ -20,7 +20,7 @@ class TestSpecialists(unittest.TestCase):
 
         mock_streams.return_value = []  # Empty streams
 
-        agent = PacerAgent(fake_llm)
+        agent = PacerAgent(fake_llm)  # type: ignore[arg-type]
 
         segments = [
             Segment(
@@ -57,7 +57,7 @@ class TestSpecialists(unittest.TestCase):
 
         mock_weather.return_value = "Sunny, 25C"
 
-        agent = NutritionistAgent(fake_llm)
+        agent = NutritionistAgent(fake_llm)  # type: ignore[arg-type]
         segments = [
             Segment(
                 start_dist=0,

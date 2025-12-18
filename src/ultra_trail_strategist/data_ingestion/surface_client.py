@@ -59,7 +59,7 @@ class SurfaceClient:
             surface = tags.get("surface")
 
             if surface:
-                return surface
+                return str(surface)
 
             highway = tags.get("highway")
             if highway in ["primary", "secondary", "tertiary", "residential"]:

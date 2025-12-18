@@ -64,7 +64,7 @@ class DriftAnalyzer:
         # Decoupling: Percentage drop in efficiency
         drift = ((h1_ratio - h2_ratio) / h1_ratio) * 100
 
-        return drift
+        return float(drift)
 
     def calculate_endurance_factor(
         self, all_activities_streams: List[List[Dict[str, Any]]]

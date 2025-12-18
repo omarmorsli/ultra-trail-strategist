@@ -46,7 +46,7 @@ class TestIntegration(unittest.TestCase):
         agent = StrategistAgent()
 
         # Mock LLM to avoid API calls and ensure deterministic output
-        agent.llm = RunnableLambda(lambda x: AIMessage(content="STRATEGY: Go fast."))
+        agent.llm = RunnableLambda(lambda x: AIMessage(content="STRATEGY: Go fast."))  # type: ignore[assignment]
 
         # IMPORTANT: Propagate mock LLM to sub-agents
         agent.pacer.llm = agent.llm
