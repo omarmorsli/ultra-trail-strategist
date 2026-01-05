@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 STATE_FILE = "live_race_state.json"

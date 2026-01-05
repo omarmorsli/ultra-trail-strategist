@@ -43,6 +43,6 @@ class RaceDataPipeline:
         return self.segments
 
     def get_dataframe(self) -> pl.DataFrame:
-        return (
-            pl.DataFrame(self.df.to_pandas())
-        )
+        """Returns the enriched course DataFrame."""
+        return self.df
+

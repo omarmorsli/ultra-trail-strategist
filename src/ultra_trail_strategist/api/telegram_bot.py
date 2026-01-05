@@ -6,11 +6,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 from ultra_trail_strategist.state_manager import RaceStateManager
 
-# Logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-
 logger = logging.getLogger(__name__)
 
 

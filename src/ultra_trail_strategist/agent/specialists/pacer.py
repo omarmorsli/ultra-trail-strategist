@@ -54,10 +54,8 @@ class PacerAgent:
         # 2. Train Model
         self.pace_model.train(streams)
 
-        # 2b. Analyze Endurance (Drift)
-        # drift_analyzer = DriftAnalyzer()
-
-        drift_penalty_base = 0.02  # 2% decay per hour after threshold
+        # Drift penalty: 2% decay per hour after 3 hours (cardiac drift simulation)
+        drift_penalty_base = 0.02
 
         # 3. Predict Segments
         predicted_splits = []

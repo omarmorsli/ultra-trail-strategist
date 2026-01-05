@@ -8,8 +8,6 @@ from pydantic import BaseModel
 
 from ultra_trail_strategist.config.settings import settings
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
