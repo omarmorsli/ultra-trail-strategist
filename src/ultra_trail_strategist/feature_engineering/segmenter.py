@@ -35,6 +35,8 @@ class Segment(BaseModel):
     elevation_loss: float
     length: float
     surface: str = "unknown"
+    start_lat: float = 0.0  # Latitude at segment start
+    start_lon: float = 0.0  # Longitude at segment start
 
 
 class CourseSegmenter:
@@ -193,6 +195,8 @@ class CourseSegmenter:
                     elevation_loss=loss,
                     length=length,
                     surface=surface,
+                    start_lat=float(row["start_lat"]),
+                    start_lon=float(row["start_lon"]),
                 )
             )
 

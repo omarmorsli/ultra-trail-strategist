@@ -102,10 +102,15 @@ class StrategistAgent:
     async def run_nutritionist(self, state: RaceState) -> Dict[str, Any]:
         """Delegate to NutritionistAgent."""
         segments = state["segments"]
-        # Hardcoded Lat/Lon for now (Chamonix approx) or extract from GPX metadata if improved
-        # Future TODO: Extract lat/lon from first segment point
-        start_lat = 45.92
-        start_lon = 6.86
+
+        # Extract coordinates from first segment, fallback to Chamonix
+        if segments and hasattr(segments[0], "start_lat") and segments[0].start_lat != 0.0:
+            start_lat = segments[0].start_lat
+            start_lon = segments[0].start_lon
+        else:
+            # Default fallback (Chamonix)
+            start_lat = 45.92
+            start_lon = 6.86
 
         race_date = state.get("race_date")
 
