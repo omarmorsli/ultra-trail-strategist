@@ -43,7 +43,8 @@ class TestCourseSegmenter(unittest.TestCase):
         add_points(900, 1200, 100, 100)  # Flat
 
         self.df = pl.DataFrame(data)
-        self.segmenter = CourseSegmenter(self.df)
+        # Use smaller min_segment_length for testing (test data has 300m segments)
+        self.segmenter = CourseSegmenter(self.df, min_segment_length=50.0)
 
         # Mock SurfaceClient to prevent network calls
         self.segmenter.surface_client = Mock()

@@ -42,19 +42,42 @@ class Segment(BaseModel):
 class CourseSegmenter:
     """
     Analyzes course data to identify tactical segments.
+
+    Segments are merged to ensure minimum practical length for race strategy.
     """
 
-    def __init__(self, df: pl.DataFrame):
+    def __init__(
+        self,
+        df: pl.DataFrame,
+        min_segment_length: float = 500.0,
+        climb_threshold: float = 3.0,
+        descent_threshold: float = -3.0,
+    ):
+        """
+        Initialize the course segmenter.
+
+        Parameters
+        ----------
+        df : pl.DataFrame
+            Course data with elevation and distance columns.
+        min_segment_length : float
+            Minimum segment length in meters (default 500m for practical racing).
+        climb_threshold : float
+            Grade percentage above which a segment is classified as a climb.
+        descent_threshold : float
+            Grade percentage below which a segment is classified as a descent.
+        """
         self.df = df
-        self.climb_threshold = 3.0  # %
-        self.descent_threshold = -3.0  # %
-        self.min_segment_length = 50.0  # meters (to avoid noise)
+        self.climb_threshold = climb_threshold
+        self.descent_threshold = descent_threshold
+        self.min_segment_length = min_segment_length
         self.surface_client = SurfaceClient()
 
     def process(self) -> List[Segment]:
         """
-        Main pipeline: calculate grade -> classify -> merge.
-        Updates self.df with 'grade' and 'segment_type' columns.
+        Main pipeline: calculate grade -> classify -> create segments -> merge.
+
+        Returns segments of practical length for race strategy.
         """
         if self.df.is_empty():
             return []
@@ -62,6 +85,7 @@ class CourseSegmenter:
         self.df = self._calculate_grade(self.df)
         self.df = self._classify_points(self.df)
         segments = self._create_segments(self.df)
+        segments = self._merge_small_segments(segments)
         return segments
 
     def _calculate_grade(self, df: pl.DataFrame) -> pl.DataFrame:
@@ -201,3 +225,81 @@ class CourseSegmenter:
             )
 
         return segments
+
+    def _merge_small_segments(self, segments: List[Segment]) -> List[Segment]:
+        """
+        Merge segments that are shorter than min_segment_length.
+
+        Strategy: Merge short segments into their neighbors, preferring to merge
+        with the segment of the same type when possible.
+        """
+        if len(segments) <= 1:
+            return segments
+
+        merged = []
+        i = 0
+
+        while i < len(segments):
+            current = segments[i]
+
+            # If segment is long enough, keep it
+            if current.length >= self.min_segment_length:
+                merged.append(current)
+                i += 1
+                continue
+
+            # Short segment - try to merge with neighbors
+            # Accumulate consecutive short segments
+            accumulated_length = current.length
+            accumulated_gain = current.elevation_gain
+            accumulated_loss = current.elevation_loss
+            accumulated_grade_weighted = current.avg_grade * current.length
+            end_idx = i
+
+            # Look ahead for more short segments to merge together
+            while (
+                end_idx + 1 < len(segments)
+                and accumulated_length < self.min_segment_length
+            ):
+                next_seg = segments[end_idx + 1]
+                accumulated_length += next_seg.length
+                accumulated_gain += next_seg.elevation_gain
+                accumulated_loss += next_seg.elevation_loss
+                accumulated_grade_weighted += next_seg.avg_grade * next_seg.length
+                end_idx += 1
+
+            # Create merged segment
+            first_seg = segments[i]
+            last_seg = segments[end_idx]
+
+            # Determine type by dominant grade
+            if accumulated_length > 0:
+                avg_grade = accumulated_grade_weighted / accumulated_length
+            else:
+                avg_grade = 0.0
+            if avg_grade > self.climb_threshold:
+                seg_type = SegmentType.CLIMB
+            elif avg_grade < self.descent_threshold:
+                seg_type = SegmentType.DESCENT
+            else:
+                seg_type = SegmentType.FLAT
+
+            merged.append(
+                Segment(
+                    start_dist=first_seg.start_dist,
+                    end_dist=last_seg.end_dist,
+                    type=seg_type,
+                    avg_grade=float(avg_grade),
+                    elevation_gain=accumulated_gain,
+                    elevation_loss=accumulated_loss,
+                    length=accumulated_length,
+                    surface=first_seg.surface,
+                    start_lat=first_seg.start_lat,
+                    start_lon=first_seg.start_lon,
+                )
+            )
+
+            i = end_idx + 1
+
+        return merged
+
