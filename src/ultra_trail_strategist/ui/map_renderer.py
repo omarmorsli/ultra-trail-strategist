@@ -5,12 +5,28 @@ import streamlit as st
 from streamlit_folium import st_folium  # type: ignore
 
 
-def render_3d_course(course_df: pd.DataFrame):
+def render_3d_course(course_df):
     """
     Renders the course in 3D using PyDeck.
+
+    Parameters
+    ----------
+    course_df : pl.DataFrame or pd.DataFrame
+        DataFrame containing course coordinates.
     """
-    if course_df.empty:
-        st.warning("No data for 3D map.")
+    # Handle Polars DataFrame
+    if hasattr(course_df, "is_empty"):
+        if course_df.is_empty():
+            st.warning("No data for 3D map.")
+            return
+        # Convert to Pandas for PyDeck compatibility
+        course_df = course_df.to_pandas()
+    elif hasattr(course_df, "empty"):
+        if course_df.empty:
+            st.warning("No data for 3D map.")
+            return
+    else:
+        st.warning("Invalid DataFrame type.")
         return
 
     # Prepare data for PathLayer
@@ -82,12 +98,30 @@ def render_3d_course(course_df: pd.DataFrame):
     st.pydeck_chart(r)
 
 
-def render_course_map(course_df: pd.DataFrame, show_radar: bool = False):
+def render_course_map(course_df, show_radar: bool = False):
     """
     Renders the course map using Folium with an optional Weather Radar overlay.
+
+    Parameters
+    ----------
+    course_df : pl.DataFrame or pd.DataFrame
+        DataFrame containing course coordinates.
+    show_radar : bool
+        Whether to show weather radar overlay.
     """
-    if course_df.empty:
-        st.warning("No coordinates to map.")
+    # Handle Polars DataFrame
+    if hasattr(course_df, "is_empty"):
+        if course_df.is_empty():
+            st.warning("No coordinates to map.")
+            return
+        # Convert to Pandas for Folium compatibility
+        course_df = course_df.to_pandas()
+    elif hasattr(course_df, "empty"):
+        if course_df.empty:
+            st.warning("No coordinates to map.")
+            return
+    else:
+        st.warning("Invalid DataFrame type.")
         return
 
     # Filter invalid coordinates
