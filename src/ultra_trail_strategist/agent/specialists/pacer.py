@@ -53,8 +53,8 @@ class PacerAgent:
                 "data": [],
             }
 
-        # 2. Train Model
-        self.pace_model.train(streams)
+        # 2. Fine-tune Model with athlete's personal data
+        self.pace_model.fine_tune(streams)
 
         # 3. Calculate athlete-specific Critical Pace (CP) from activity history
         # CP = threshold pace below which you can sustain effort indefinitely

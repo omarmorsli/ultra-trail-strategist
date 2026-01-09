@@ -1,0 +1,16 @@
+{
+  "model_type": "gradient_boosting",
+  "feature_columns": [
+    "grade",
+    "altitude"
+  ],
+  "metrics": {
+    "mae": 0.5326636811145865,
+    "rmse": 0.8073208232937322,
+    "r2": 0.16841155675241404
+  },
+  "feature_importance": {
+    "grade": 0.5263716864344727,
+    "altitude": 0.4736283135655272
+  }
+}
