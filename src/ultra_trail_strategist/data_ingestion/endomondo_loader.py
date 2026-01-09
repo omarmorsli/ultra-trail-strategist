@@ -20,6 +20,13 @@ import numpy as np
 import polars as pl
 import requests
 
+try:
+    from tqdm import tqdm  # type: ignore[import-untyped]
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+    tqdm = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 # FitRec dataset URLs
@@ -361,6 +368,15 @@ class EndomondoLoader:
             if use_filtered
             else self.load_raw(max_workouts)
         )
+        
+        # Wrap with progress bar for processing
+        if TQDM_AVAILABLE and tqdm is not None:
+            workout_iter = tqdm(
+                workout_iter,
+                desc="Processing workouts",
+                unit="workout",
+                total=max_workouts or 253000
+            )
 
         for workout in workout_iter:
             sport = workout.get("sport", "unknown")
