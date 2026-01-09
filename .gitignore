@@ -40,6 +40,8 @@ venv.bak/
 /*.gpx
 /*.json
 /data
+/assets/Pointe*
+/assets/Tour*
 
 # Cache
 *.sqlite
