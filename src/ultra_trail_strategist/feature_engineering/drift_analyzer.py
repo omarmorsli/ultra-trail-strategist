@@ -9,7 +9,7 @@ class DriftAnalyzer:
     Pa:HR = Pace (or Power) to Heart Rate Ratio.
     """
 
-    def calculate_decoupling(self, streams: List[Dict[str, Any]]) -> float:
+    def calculate_decoupling(self, streams: Any) -> float:
         """
         Calculates the aerobic decoupling percentage for a single activity.
         Logic:
@@ -23,25 +23,50 @@ class DriftAnalyzer:
         Lower Ratio in H2 means Decoupling.
 
         Args:
-            streams: List of data points with 'velocity_smooth' and 'heartrate'.
+            streams: Activity stream data. Can be:
+                - Strava format: {'velocity_smooth': {'data': [...]}, 'heartrate': {'data': [...]}}
+                - Flat list: [{'velocity_smooth': v, 'heartrate': hr}, ...]
 
         Returns:
             Decoupling % (e.g., 5.0 for 5% drift). Positive means drift (bad).
             Returns 0.0 if insufficient data.
         """
-        if not streams or len(streams) < 100:
+        if not streams:
             return 0.0
 
-        # Extract numpy arrays
-        velocities = []
-        heartrates = []
+        # Handle Strava nested format: {'velocity_smooth': {'data': [...]}, ...}
+        if isinstance(streams, dict):
+            v_stream = streams.get("velocity_smooth", {})
+            hr_stream = streams.get("heartrate", {})
 
-        for p in streams:
-            v = p.get("velocity_smooth")
-            hr = p.get("heartrate")
-            if v is not None and hr is not None and hr > 0 and v > 0:
-                velocities.append(v)
-                heartrates.append(hr)
+            # Extract 'data' arrays if present
+            velocities = v_stream.get("data", []) if isinstance(v_stream, dict) else []
+            heartrates = hr_stream.get("data", []) if isinstance(hr_stream, dict) else []
+
+            if not velocities or not heartrates:
+                return 0.0
+
+            # Ensure same length
+            min_len = min(len(velocities), len(heartrates))
+            velocities = velocities[:min_len]
+            heartrates = heartrates[:min_len]
+
+        # Handle flat list format: [{'velocity_smooth': v, 'heartrate': hr}, ...]
+        elif isinstance(streams, list):
+            if len(streams) < 100:
+                return 0.0
+
+            velocities = []
+            heartrates = []
+
+            for p in streams:
+                v = p.get("velocity_smooth")
+                hr = p.get("heartrate")
+                if v is not None and hr is not None and hr > 0 and v > 0:
+                    velocities.append(v)
+                    heartrates.append(hr)
+        else:
+            return 0.0
 
         if len(velocities) < 100:
             return 0.0

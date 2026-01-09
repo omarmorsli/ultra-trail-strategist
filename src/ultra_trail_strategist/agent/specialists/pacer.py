@@ -1,9 +1,11 @@
 import logging
 from typing import Any, Dict, List, Optional
 
+import numpy as np
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
+from ultra_trail_strategist.feature_engineering.drift_analyzer import DriftAnalyzer
 from ultra_trail_strategist.feature_engineering.fatigue_model import FatigueModel
 from ultra_trail_strategist.feature_engineering.pace_model import PacePredictor
 from ultra_trail_strategist.mcp_server import get_activity_streams
@@ -54,16 +56,43 @@ class PacerAgent:
         # 2. Train Model
         self.pace_model.train(streams)
 
-        # Drift penalty: 2% decay per hour after 3 hours (cardiac drift simulation)
-        drift_penalty_base = 0.02
+        # 3. Calculate athlete-specific Critical Pace (CP) from activity history
+        # CP = threshold pace below which you can sustain effort indefinitely
+        # Use median pace from recent activities as a proxy
+        athlete_paces = []
+        for activity in athlete_history:
+            avg_speed = activity.get("average_speed")  # m/s from Strava
+            if avg_speed and avg_speed > 0:
+                pace_min_km = (1000 / avg_speed) / 60  # Convert to min/km
+                athlete_paces.append(pace_min_km)
 
-        # 3. Predict Segments
+        if athlete_paces:
+            # Use 75th percentile as CP (most activities are easier than race pace)
+            critical_pace = float(np.percentile(athlete_paces, 75))
+            logger.info(f"Calculated Critical Pace from athlete data: {critical_pace:.2f} min/km")
+        else:
+            # Fallback for recreational runner (6 min/km is ~10 km/h)
+            critical_pace = 6.0
+            logger.warning("No pace data available, using default CP: 6.0 min/km")
+
+        # 4. Analyze Cardiac Drift from activity streams
+        drift_analyzer = DriftAnalyzer()
+        endurance_factor = drift_analyzer.calculate_endurance_factor(streams)
+        # Convert endurance factor to hourly drift penalty
+        # If endurance_factor is 0.95, that means 5% total drift expected
+        drift_penalty_base = (1.0 - endurance_factor) / 3.0  # Spread over ~3 hours
+        logger.info(
+            f"Endurance factor: {endurance_factor:.2f}, "
+            f"drift penalty: {drift_penalty_base:.1%}/hour after hour 3"
+        )
+
+        # 5. Predict Segments
         predicted_splits = []
         structured_data = []  # For Dashboard Plotting
         total_time_min = 0.0
 
-        # Initialize Physiology Model (Default CP 4:30 min/km for now)
-        fatigue_model = FatigueModel(critical_pace_min_km=4.5)
+        # Initialize Physiology Model with athlete-specific CP
+        fatigue_model = FatigueModel(critical_pace_min_km=critical_pace)
 
         for i, seg in enumerate(segments):
             seg_len_km = seg.length / 1000

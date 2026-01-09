@@ -94,12 +94,39 @@ class PacePredictor:
     def predict(self, grade: float) -> float:
         """
         Predicts velocity (m/s) for a single grade value.
+
+        Parameters
+        ----------
+        grade : float
+            Grade percentage (e.g., 10.0 for 10% uphill, -5.0 for 5% downhill).
+
+        Returns
+        -------
+        float
+            Predicted velocity in m/s.
         """
         if not self.is_fitted:
-            # Fallback based on Naismith's rule approximation or standard flat pace
-            # Assume 10 km/h (2.78 m/s) on flat, decaying with grade
-            # Very rough fallback
-            return float(max(0.5, 2.78 - (abs(grade) * 0.1)))
+            # Fallback using Naismith's Rule (refined):
+            # Base pace: 6 min/km (10 km/h = 2.78 m/s) for recreational runner
+            # Uphill: +1 min/km per 10% grade
+            # Downhill: -0.5 min/km per 10% grade (less benefit than climb penalty)
+            base_pace_min_km = 6.0  # Recreational runner flat pace
+
+            if grade > 0:
+                # Uphill penalty: ~1 min/km per 10% grade
+                pace_min_km = base_pace_min_km + (grade * 0.1)
+            else:
+                # Downhill benefit (capped - steep descents aren't faster)
+                # Less benefit than climb penalty (technical terrain)
+                benefit = min(abs(grade) * 0.05, 1.5)  # Cap at 1.5 min/km faster
+                pace_min_km = base_pace_min_km - benefit
+
+            # Safety bounds: never slower than 20 min/km or faster than 3 min/km
+            pace_min_km = max(3.0, min(20.0, pace_min_km))
+
+            # Convert pace (min/km) to velocity (m/s)
+            velocity_ms = 1000 / (pace_min_km * 60)
+            return float(velocity_ms)
 
         return float(self.model.predict([[grade]])[0])
 
