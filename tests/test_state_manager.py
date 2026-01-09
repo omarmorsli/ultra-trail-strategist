@@ -33,7 +33,7 @@ class TestRaceState(unittest.TestCase):
 
     def test_state_ignores_extra_fields(self):
         """Test that extra fields are ignored (ConfigDict extra='ignore')."""
-        state = RaceState(unknown_field="ignored", current_segment_index=5)
+        state = RaceState(unknown_field="ignored", current_segment_index=5) # type: ignore[call-arg]
         self.assertEqual(state.current_segment_index, 5)
         self.assertFalse(hasattr(state, "unknown_field"))
 

@@ -34,7 +34,7 @@ class TestAsyncUtils(unittest.TestCase):
             return x * 2
 
         async def run_test():
-            result = await decorated_blocking(10)
+            result = await decorated_blocking(10) # type: ignore[misc]
             return result
 
         result = asyncio.run(run_test())
