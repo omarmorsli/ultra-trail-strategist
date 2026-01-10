@@ -155,6 +155,7 @@ class BaseModelTrainer:
                 learning_rate=model_params.get("learning_rate", 0.1),
                 min_samples_split=model_params.get("min_samples_split", 10),
                 random_state=42,
+                verbose=2,  # Show training progress
             )
         else:
             model = RandomForestRegressor(
@@ -163,10 +164,15 @@ class BaseModelTrainer:
                 min_samples_split=model_params.get("min_samples_split", 10),
                 random_state=42,
                 n_jobs=-1,
+                verbose=1,  # Show training progress
             )
 
-        logger.info(f"Training {self.model_type} model...")
+        logger.info(
+            f"Training {self.model_type} model on {len(X_train):,} samples "
+            f"({len(X_test):,} test samples)..."
+        )
         model.fit(X_train, y_train)
+        logger.info("Training complete! Evaluating model...")
 
         # Evaluate
         y_pred = model.predict(X_test)
