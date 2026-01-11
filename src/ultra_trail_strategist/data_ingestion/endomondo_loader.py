@@ -20,6 +20,10 @@ import numpy as np
 import polars as pl
 import requests
 
+from ultra_trail_strategist.feature_engineering.hr_zone_calculator import (
+    HRZoneCalculator,
+)
+
 try:
     from tqdm import tqdm  # type: ignore[import-untyped]
     TQDM_AVAILABLE = True
@@ -327,6 +331,7 @@ class EndomondoLoader:
         sport_filter: Optional[List[str]] = None,
         max_workouts: Optional[int] = None,
         use_filtered: bool = False,
+        include_hr_zones: bool = False,
     ) -> pl.DataFrame:
         """
         Convert workouts to training-ready DataFrame.
@@ -339,6 +344,8 @@ class EndomondoLoader:
             Maximum workouts to process.
         use_filtered : bool
             Use pre-filtered dataset (normalized values).
+        include_hr_zones : bool
+            Calculate and include HR zones (1-5) in output.
 
         Returns
         -------
@@ -428,6 +435,15 @@ class EndomondoLoader:
             if not grades:
                 continue
 
+            # Calculate HR zones if requested and HR data available
+            hr_zone_calc = None
+            if include_hr_zones and heart_rate and len(heart_rate) > 10:
+                estimated_max_hr = HRZoneCalculator(max_hr=180).estimate_max_hr_from_workout(
+                    heart_rate
+                )
+                if estimated_max_hr:
+                    hr_zone_calc = HRZoneCalculator(max_hr=estimated_max_hr)
+
             # Ensure arrays match
             min_len = min(len(grades), len(velocity), len(altitude))
             if heart_rate:
@@ -444,8 +460,14 @@ class EndomondoLoader:
                 }
                 if heart_rate and i < len(heart_rate):
                     record["heart_rate"] = heart_rate[i]
+                    # Add HR zone if calculated
+                    if hr_zone_calc:
+                        record["hr_zone"] = hr_zone_calc.get_zone(heart_rate[i])
+                    else:
+                        record["hr_zone"] = None
                 else:
                     record["heart_rate"] = None
+                    record["hr_zone"] = None
                 records.append(record)
 
         df = pl.DataFrame(records)

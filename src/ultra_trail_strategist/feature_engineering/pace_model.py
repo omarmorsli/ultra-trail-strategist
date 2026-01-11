@@ -124,6 +124,7 @@ class HybridPacePredictor:
         grade: float,
         altitude: float = 0.0,
         heart_rate: Optional[float] = None,
+        hr_zone: Optional[int] = None,
         distance_into_race: Optional[float] = None,
         total_race_distance: Optional[float] = None,
         hour_of_day: Optional[int] = None,
@@ -139,6 +140,8 @@ class HybridPacePredictor:
             Altitude in meters (for altitude adjustment).
         heart_rate : Optional[float]
             Target heart rate (if available).
+        hr_zone : Optional[int]
+            Heart rate zone 1-5 (preferred over raw heart_rate).
         distance_into_race : Optional[float]
             Distance already covered in race (km).
         total_race_distance : Optional[float]
@@ -152,7 +155,7 @@ class HybridPacePredictor:
             Predicted velocity in m/s.
         """
         # Get base prediction
-        base_velocity = self._get_model_prediction(grade, altitude, heart_rate)
+        base_velocity = self._get_model_prediction(grade, altitude, heart_rate, hr_zone)
 
         # Apply ultra fatigue adjustment if race context provided
         if distance_into_race is not None and total_race_distance is not None:
@@ -170,6 +173,7 @@ class HybridPacePredictor:
         grade: float,
         altitude: float = 0.0,
         heart_rate: Optional[float] = None,
+        hr_zone: Optional[int] = None,
     ) -> float:
         """
         Get prediction from appropriate model.
@@ -179,12 +183,12 @@ class HybridPacePredictor:
         """
         # Priority 1: Personal model if fitted
         if self.is_personal_fitted and self.personal_data_count >= self.personal_data_threshold:
-            features = self._prepare_features(grade, altitude, heart_rate)
+            features = self._prepare_features(grade, altitude, heart_rate, hr_zone)
             return float(self.personal_model.predict([features])[0])
 
         # Priority 2: Base model if available
         if self.base_model is not None:
-            features = self._prepare_features(grade, altitude, heart_rate)
+            features = self._prepare_features(grade, altitude, heart_rate, hr_zone)
             try:
                 return float(self.base_model.predict([features])[0])
             except Exception as e:
@@ -198,10 +202,14 @@ class HybridPacePredictor:
         grade: float,
         altitude: float = 0.0,
         heart_rate: Optional[float] = None,
+        hr_zone: Optional[int] = None,
     ) -> List[float]:
         """Prepare feature vector for model input."""
         features = [grade, altitude]
-        if heart_rate is not None and "heart_rate" in self.base_model_features:
+        # Prefer hr_zone over raw heart_rate
+        if hr_zone is not None and "hr_zone" in self.base_model_features:
+            features.append(float(hr_zone))
+        elif heart_rate is not None and "heart_rate" in self.base_model_features:
             features.append(heart_rate)
         return features
 

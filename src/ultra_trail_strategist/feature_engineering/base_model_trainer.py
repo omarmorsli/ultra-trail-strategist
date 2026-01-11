@@ -78,6 +78,7 @@ class BaseModelTrainer:
         self,
         df: pl.DataFrame,
         include_heart_rate: bool = False,
+        include_hr_zone: bool = False,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Prepare feature matrix and target vector from DataFrame.
@@ -88,6 +89,8 @@ class BaseModelTrainer:
             Training data with grade, velocity, altitude columns.
         include_heart_rate : bool
             Whether to include heart_rate as a feature.
+        include_hr_zone : bool
+            Whether to include hr_zone (1-5) as a feature.
 
         Returns
         -------
@@ -95,7 +98,12 @@ class BaseModelTrainer:
             Feature matrix X and target vector y.
         """
         features = self.feature_columns.copy()
-        if include_heart_rate and "heart_rate" in df.columns:
+        
+        if include_hr_zone and "hr_zone" in df.columns:
+            features.append("hr_zone")
+            # Filter rows with valid HR zone
+            df = df.filter(pl.col("hr_zone").is_not_null())
+        elif include_heart_rate and "heart_rate" in df.columns:
             features.append("heart_rate")
             # Filter rows with valid heart rate
             df = df.filter(pl.col("heart_rate").is_not_null())
@@ -113,6 +121,7 @@ class BaseModelTrainer:
         data: pl.DataFrame,
         test_size: float = 0.2,
         include_heart_rate: bool = False,
+        include_hr_zone: bool = False,
         **model_params: Any,
     ) -> Dict[str, Any]:
         """
@@ -126,6 +135,8 @@ class BaseModelTrainer:
             Fraction of data to use for testing.
         include_heart_rate : bool
             Include heart_rate as a feature.
+        include_hr_zone : bool
+            Include hr_zone (1-5) as a feature (preferred over raw HR).
         **model_params
             Additional parameters passed to the model.
 
@@ -138,7 +149,7 @@ class BaseModelTrainer:
             - feature_importance: Feature importance scores
         """
         logger.info(f"Preparing features from {len(data)} samples...")
-        X, y = self.prepare_features(data, include_heart_rate)
+        X, y = self.prepare_features(data, include_heart_rate, include_hr_zone)
 
         logger.info(f"Feature matrix shape: {X.shape}")
 
@@ -180,7 +191,9 @@ class BaseModelTrainer:
 
         # Feature importance
         features = self.feature_columns.copy()
-        if include_heart_rate:
+        if include_hr_zone:
+            features.append("hr_zone")
+        elif include_heart_rate:
             features.append("heart_rate")
 
         feature_importance = dict(
