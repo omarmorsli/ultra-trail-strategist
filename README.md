@@ -115,6 +115,25 @@ trainer.save_model(result)
 "
 ```
 
+### 6. Benchmarking Pace Models
+Compare different prediction approaches on a GPX course:
+```bash
+pdm run python scripts/benchmark_pace_model.py --gpx assets/demo.gpx
+```
+
+Example output:
+```
+BENCHMARK SUMMARY
+============================================================
+Course: demo
+Distance: 17.31 km | D+: 389m
+------------------------------------------------------------
+Naismith's Rule                    01:46:14 6.1 min/km
+Endomondo Base Model               01:46:14 6.1 min/km
+Hybrid (Fatigue Adjusted)          02:01:38 7.0 min/km
+============================================================
+```
+
 ## 🧪 Testing
 Run the comprehensive test suite to verify all components:
 ```bash
