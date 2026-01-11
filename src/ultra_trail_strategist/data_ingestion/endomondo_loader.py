@@ -449,7 +449,29 @@ class EndomondoLoader:
             if heart_rate:
                 min_len = min(min_len, len(heart_rate))
 
+            # Calculate cumulative metrics for new features
+            cumulative_distance = 0.0
+            cumulative_elev_gain = 0.0
+            total_workout_distance = distance[-1] if distance else 0.0
+
             for i in range(min_len):
+                # Update cumulative distance (from distance array)
+                if i > 0 and i < len(distance):
+                    segment_dist = distance[i] - distance[i - 1]
+                    cumulative_distance += max(0, segment_dist)
+                    
+                    # Cumulative elevation gain
+                    if i < len(altitude):
+                        elev_diff = altitude[i] - altitude[i - 1]
+                        if elev_diff > 0:
+                            cumulative_elev_gain += elev_diff
+
+                # Calculate progress percentage
+                workout_pct = (
+                    cumulative_distance / total_workout_distance
+                    if total_workout_distance > 0 else 0.0
+                )
+
                 record = {
                     "workout_id": workout_id,
                     "user_id": user_id,
@@ -457,6 +479,10 @@ class EndomondoLoader:
                     "grade": grades[i],
                     "velocity": velocity[i],
                     "altitude": altitude[i],
+                    # New features
+                    "distance_into_workout": cumulative_distance,
+                    "cumulative_elev_gain": cumulative_elev_gain,
+                    "workout_distance_pct": workout_pct,
                 }
                 if heart_rate and i < len(heart_rate):
                     record["heart_rate"] = heart_rate[i]

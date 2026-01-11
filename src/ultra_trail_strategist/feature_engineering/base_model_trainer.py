@@ -22,7 +22,13 @@ from sklearn.metrics import (  # type: ignore[import-untyped]
     mean_squared_error,
     r2_score,
 )
-from sklearn.model_selection import train_test_split  # type: ignore[import-untyped]
+from sklearn.model_selection import (  # type: ignore[import-untyped]
+    GroupKFold,
+    GroupShuffleSplit,
+    cross_val_score,
+    train_test_split,
+)
+from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -71,15 +77,26 @@ class BaseModelTrainer:
         self.model_dir = Path(model_dir)
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
+        # Core features (always used)
         self.feature_columns = ["grade", "altitude"]
+        
+        # Extended features (used if available)
+        self.extended_features = [
+            "distance_into_workout",
+            "cumulative_elev_gain", 
+            "workout_distance_pct",
+        ]
+        
         self.target_column = "velocity"
+        self.scaler: Optional[StandardScaler] = None
 
     def prepare_features(
         self,
         df: pl.DataFrame,
         include_heart_rate: bool = False,
         include_hr_zone: bool = False,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        use_extended_features: bool = True,
+    ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
         """
         Prepare feature matrix and target vector from DataFrame.
 
@@ -91,6 +108,8 @@ class BaseModelTrainer:
             Whether to include heart_rate as a feature.
         include_hr_zone : bool
             Whether to include hr_zone (1-5) as a feature.
+        use_extended_features : bool
+            Whether to include extended features (distance, elevation gain, etc.).
 
         Returns
         -------
@@ -98,6 +117,12 @@ class BaseModelTrainer:
             Feature matrix X and target vector y.
         """
         features = self.feature_columns.copy()
+        
+        # Add extended features if available and requested
+        if use_extended_features:
+            for ext_feat in self.extended_features:
+                if ext_feat in df.columns:
+                    features.append(ext_feat)
         
         if include_hr_zone and "hr_zone" in df.columns:
             features.append("hr_zone")
@@ -114,7 +139,7 @@ class BaseModelTrainer:
         X = df.select(features).to_numpy()
         y = df.select(self.target_column).to_numpy().flatten()
 
-        return X, y
+        return X, y, features
 
     def train(
         self,
@@ -149,7 +174,9 @@ class BaseModelTrainer:
             - feature_importance: Feature importance scores
         """
         logger.info(f"Preparing features from {len(data)} samples...")
-        X, y = self.prepare_features(data, include_heart_rate, include_hr_zone)
+        X, y, feature_names = self.prepare_features(
+            data, include_heart_rate, include_hr_zone
+        )
 
         logger.info(f"Feature matrix shape: {X.shape}")
 
@@ -190,14 +217,8 @@ class BaseModelTrainer:
         metrics = self._calculate_metrics(y_test, y_pred)
 
         # Feature importance
-        features = self.feature_columns.copy()
-        if include_hr_zone:
-            features.append("hr_zone")
-        elif include_heart_rate:
-            features.append("heart_rate")
-
         feature_importance = dict(
-            zip(features, model.feature_importances_, strict=True)
+            zip(feature_names, model.feature_importances_, strict=True)
         )
 
         logger.info(f"Training complete. R² = {metrics['r2']:.4f}")
@@ -206,7 +227,212 @@ class BaseModelTrainer:
             "model": model,
             "metrics": metrics,
             "feature_importance": feature_importance,
-            "feature_columns": features,
+            "feature_columns": feature_names,
+        }
+
+    def train_with_validation(
+        self,
+        data: pl.DataFrame,
+        test_size: float = 0.2,
+        val_size: float = 0.2,
+        include_heart_rate: bool = False,
+        include_hr_zone: bool = False,
+        use_extended_features: bool = True,
+        use_scaling: bool = True,
+        **model_params: Any,
+    ) -> Dict[str, Any]:
+        """
+        Train with proper train/val/test split grouped by workout_id.
+
+        This prevents data leakage by ensuring data points from the same
+        workout are never split across train, val, and test sets.
+
+        Parameters
+        ----------
+        data : pl.DataFrame
+            Training data with workout_id column for grouping.
+        test_size : float
+            Fraction of data for final test set.
+        val_size : float
+            Fraction of remaining data for validation.
+        use_scaling : bool
+            Whether to apply StandardScaler to features.
+        **model_params
+            Additional parameters passed to the model.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Results with train, val, and test metrics.
+        """
+        logger.info(f"Preparing features from {len(data)} samples...")
+        
+        # Get workout IDs for group-based splitting
+        if "workout_id" not in data.columns:
+            logger.warning("No workout_id column - falling back to random split")
+            return self.train(
+                data, test_size, include_heart_rate, include_hr_zone, **model_params
+            )
+
+        # Prepare features (returns X, y, feature_names)
+        result = self.prepare_features(
+            data, include_heart_rate, include_hr_zone, use_extended_features
+        )
+        X, y, feature_names = result[0], result[1], result[2]
+        
+        # Get filtered workout IDs (matching the filtered data)
+        filtered_data = data.drop_nulls(subset=feature_names + [self.target_column])
+        groups = filtered_data["workout_id"].to_numpy()
+
+        logger.info(f"Feature matrix shape: {X.shape}, using {len(feature_names)} features")
+        logger.info(f"Features: {feature_names}")
+
+        # First split: train+val vs test (by workout)
+        gss_test = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=42)
+        trainval_idx, test_idx = next(gss_test.split(X, y, groups))
+        
+        X_trainval, X_test = X[trainval_idx], X[test_idx]
+        y_trainval, y_test = y[trainval_idx], y[test_idx]
+        groups_trainval = groups[trainval_idx]
+
+        # Second split: train vs val (by workout)
+        gss_val = GroupShuffleSplit(
+            n_splits=1, test_size=val_size / (1 - test_size), random_state=42
+        )
+        train_idx, val_idx = next(gss_val.split(X_trainval, y_trainval, groups_trainval))
+        
+        X_train, X_val = X_trainval[train_idx], X_trainval[val_idx]
+        y_train, y_val = y_trainval[train_idx], y_trainval[val_idx]
+
+        logger.info(
+            f"Split sizes - Train: {len(X_train):,}, Val: {len(X_val):,}, "
+            f"Test: {len(X_test):,}"
+        )
+
+        # Apply scaling if requested
+        if use_scaling:
+            self.scaler = StandardScaler()
+            X_train = self.scaler.fit_transform(X_train)
+            X_val = self.scaler.transform(X_val)
+            X_test = self.scaler.transform(X_test)
+            logger.info("Applied StandardScaler to features")
+
+        # Create model
+        if self.model_type == "gradient_boosting":
+            model = GradientBoostingRegressor(
+                n_estimators=model_params.get("n_estimators", 200),
+                max_depth=model_params.get("max_depth", 6),
+                learning_rate=model_params.get("learning_rate", 0.1),
+                min_samples_split=model_params.get("min_samples_split", 10),
+                random_state=42,
+                verbose=2,
+            )
+        else:
+            model = RandomForestRegressor(
+                n_estimators=model_params.get("n_estimators", 100),
+                max_depth=model_params.get("max_depth", 10),
+                min_samples_split=model_params.get("min_samples_split", 10),
+                random_state=42,
+                n_jobs=-1,
+                verbose=1,
+            )
+
+        logger.info(f"Training {self.model_type} model...")
+        model.fit(X_train, y_train)
+        logger.info("Training complete!")
+
+        # Evaluate on all sets
+        train_metrics = self._calculate_metrics(y_train, model.predict(X_train))
+        val_metrics = self._calculate_metrics(y_val, model.predict(X_val))
+        test_metrics = self._calculate_metrics(y_test, model.predict(X_test))
+
+        logger.info(f"Train R²: {train_metrics['r2']:.4f}")
+        logger.info(f"Val R²:   {val_metrics['r2']:.4f}")
+        logger.info(f"Test R²:  {test_metrics['r2']:.4f}")
+
+        # Check for overfitting
+        overfit_gap = train_metrics['r2'] - val_metrics['r2']
+        if overfit_gap > 0.1:
+            logger.warning(
+                f"⚠️ Possible overfitting: Train-Val gap = {overfit_gap:.4f}"
+            )
+
+        # Feature importance
+        feature_importance = dict(
+            zip(feature_names, model.feature_importances_, strict=True)
+        )
+
+        return {
+            "model": model,
+            "scaler": self.scaler,
+            "train_metrics": train_metrics,
+            "val_metrics": val_metrics,
+            "test_metrics": test_metrics,
+            "feature_importance": feature_importance,
+            "feature_columns": feature_names,
+        }
+
+    def cross_validate(
+        self,
+        data: pl.DataFrame,
+        n_splits: int = 5,
+        include_heart_rate: bool = False,
+        include_hr_zone: bool = False,
+        use_extended_features: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Perform cross-validation with GroupKFold by workout_id.
+
+        Parameters
+        ----------
+        data : pl.DataFrame
+            Training data with workout_id column.
+        n_splits : int
+            Number of CV folds.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Cross-validation scores and statistics.
+        """
+        logger.info(f"Running {n_splits}-fold cross-validation...")
+        
+        if "workout_id" not in data.columns:
+            raise ValueError("workout_id column required for group-based CV")
+
+        result = self.prepare_features(
+            data, include_heart_rate, include_hr_zone, use_extended_features
+        )
+        X, y, feature_names = result[0], result[1], result[2]
+        
+        filtered_data = data.drop_nulls(subset=feature_names + [self.target_column])
+        groups = filtered_data["workout_id"].to_numpy()
+
+        # Create model
+        if self.model_type == "gradient_boosting":
+            model = GradientBoostingRegressor(
+                n_estimators=100,  # Faster for CV
+                max_depth=6,
+                learning_rate=0.1,
+                random_state=42,
+            )
+        else:
+            model = RandomForestRegressor(
+                n_estimators=50, max_depth=10, random_state=42, n_jobs=-1
+            )
+
+        # GroupKFold ensures same workout never in both train and test
+        gkf = GroupKFold(n_splits=n_splits)
+        scores = cross_val_score(model, X, y, groups=groups, cv=gkf, scoring="r2")
+
+        logger.info(f"CV R² scores: {scores}")
+        logger.info(f"Mean R²: {scores.mean():.4f} (+/- {scores.std() * 2:.4f})")
+
+        return {
+            "cv_scores": scores.tolist(),
+            "mean_r2": float(scores.mean()),
+            "std_r2": float(scores.std()),
+            "n_splits": n_splits,
         }
 
     def _calculate_metrics(
@@ -253,7 +479,7 @@ class BaseModelTrainer:
             ]
 
         results = {}
-        X, y = self.prepare_features(test_data)
+        X, y, _ = self.prepare_features(test_data)
 
         for min_grade, max_grade in buckets:
             mask = (test_data["grade"].to_numpy() >= min_grade) & (
