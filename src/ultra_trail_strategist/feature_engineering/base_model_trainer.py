@@ -295,9 +295,9 @@ class BaseModelTrainer:
 
         if len(groups) == 0:
             raise ValueError(
-                f"No valid samples after filtering. "
-                f"Check if hr_zone/heart_rate columns have data. "
-                f"Try with include_hr_zone=False"
+                "No valid samples after filtering. "
+                "Check if hr_zone/heart_rate columns have data. "
+                "Try with include_hr_zone=False"
             )
 
         logger.info(f"Feature matrix shape: {X.shape}, using {len(feature_names)} features")
