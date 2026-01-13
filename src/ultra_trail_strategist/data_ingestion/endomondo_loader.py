@@ -441,7 +441,8 @@ class EndomondoLoader:
                 estimated_max_hr = HRZoneCalculator(max_hr=180).estimate_max_hr_from_workout(
                     heart_rate
                 )
-                if estimated_max_hr:
+                # Only use estimated max HR if within valid range
+                if estimated_max_hr and 100 <= estimated_max_hr <= 220:
                     hr_zone_calc = HRZoneCalculator(max_hr=estimated_max_hr)
 
             # Ensure arrays match

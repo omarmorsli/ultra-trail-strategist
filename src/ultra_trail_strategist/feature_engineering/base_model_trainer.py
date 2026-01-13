@@ -280,9 +280,25 @@ class BaseModelTrainer:
         )
         X, y, feature_names = result[0], result[1], result[2]
         
-        # Get filtered workout IDs (matching the filtered data)
-        filtered_data = data.drop_nulls(subset=feature_names + [self.target_column])
+        # Get filtered workout IDs - must apply same filtering as prepare_features
+        filtered_data = data.clone()
+        
+        # Apply HR zone/heart rate filtering to match prepare_features
+        if include_hr_zone and "hr_zone" in data.columns:
+            filtered_data = filtered_data.filter(pl.col("hr_zone").is_not_null())
+        elif include_heart_rate and "heart_rate" in data.columns:
+            filtered_data = filtered_data.filter(pl.col("heart_rate").is_not_null())
+        
+        # Drop nulls in feature columns
+        filtered_data = filtered_data.drop_nulls(subset=feature_names + [self.target_column])
         groups = filtered_data["workout_id"].to_numpy()
+
+        if len(groups) == 0:
+            raise ValueError(
+                f"No valid samples after filtering. "
+                f"Check if hr_zone/heart_rate columns have data. "
+                f"Try with include_hr_zone=False"
+            )
 
         logger.info(f"Feature matrix shape: {X.shape}, using {len(feature_names)} features")
         logger.info(f"Features: {feature_names}")
@@ -527,13 +543,35 @@ class BaseModelTrainer:
         with open(model_path, "wb") as f:
             pickle.dump(model_result["model"], f)
 
+        # Handle both old train() and new train_with_validation() result formats
+        if "metrics" in model_result:
+            # Old format from train()
+            metrics = model_result["metrics"]
+        elif "test_metrics" in model_result:
+            # New format from train_with_validation()
+            metrics = {
+                "train": model_result["train_metrics"],
+                "val": model_result["val_metrics"],
+                "test": model_result["test_metrics"],
+            }
+        else:
+            metrics = {}
+
         # Save metadata (non-model data)
         metadata = {
             "model_type": self.model_type,
             "feature_columns": model_result["feature_columns"],
-            "metrics": model_result["metrics"],
+            "metrics": metrics,
             "feature_importance": model_result["feature_importance"],
         }
+        
+        # Save scaler if present
+        if "scaler" in model_result and model_result["scaler"] is not None:
+            scaler_path = self.model_dir / f"{model_name}_scaler.pkl"
+            with open(scaler_path, "wb") as f:
+                pickle.dump(model_result["scaler"], f)
+            metadata["scaler_path"] = str(scaler_path)
+        
         with open(meta_path, "w") as f:
             json.dump(metadata, f, indent=2)
 

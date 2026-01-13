@@ -48,3 +48,6 @@ venv.bak/
 .strava_cache*
 .weather_cache*
 .surface_cache*
+
+# Temporary files
+/models/*
