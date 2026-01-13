@@ -107,6 +107,32 @@ class TestEndomondoLoader:
         assert "grade" in df.columns
         assert "velocity" in df.columns
         assert "altitude" in df.columns
+        # Check new features
+        assert "distance_into_workout" in df.columns
+        assert "cumulative_elev_gain" in df.columns
+        assert "workout_distance_pct" in df.columns
+
+    def test_to_training_data_new_features_values(
+        self, loader: EndomondoLoader, sample_workout: dict, tmp_path: Path
+    ) -> None:
+        """Test that new fatigue-related features have correct values."""
+        gz_path = tmp_path / "endomondoHR.json.gz"
+        with gzip.open(gz_path, "wt", encoding="utf-8") as f:
+            f.write(repr(sample_workout) + "\n")
+
+        df = loader.to_training_data(max_workouts=1)
+
+        # distance_into_workout should be cumulative and non-decreasing
+        distances = df["distance_into_workout"].to_list()
+        assert all(d >= 0 for d in distances)
+        
+        # cumulative_elev_gain should be non-negative
+        elev_gains = df["cumulative_elev_gain"].to_list()
+        assert all(e >= 0 for e in elev_gains)
+        
+        # workout_distance_pct should be between 0 and 1
+        pcts = df["workout_distance_pct"].to_list()
+        assert all(0 <= p <= 1 for p in pcts)
 
     def test_to_training_data_sport_filter(
         self, loader: EndomondoLoader, sample_workout: dict, tmp_path: Path
